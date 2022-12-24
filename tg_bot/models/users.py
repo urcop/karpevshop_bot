@@ -38,6 +38,12 @@ class User(Base):
             await db_session.commit()
             return result.first()
 
+    @classmethod
+    async def get_balance(cls, session_maker: sessionmaker, telegram_id: int):
+        async with session_maker() as db_session:
+            sql = select(cls.balance).where(cls.telegram_id == telegram_id)
+            request = db_session.execute(sql)
+
     async def count_referrals(cls, session_maker: sessionmaker, user: "User"):
         async with session_maker() as db_session:
             sql = select(

@@ -5,6 +5,7 @@ from aiogram.contrib.fsm_storage.redis import RedisStorage2
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from tg_bot.config import load_config
+from tg_bot.handlers.profile import register_profile
 from tg_bot.handlers.start import register_start
 from tg_bot.middlewares.db import DbMiddleware
 from tg_bot.services.database import create_db_session
@@ -22,6 +23,7 @@ def register_all_filters(dp):
 
 def register_all_handlers(dp):
     register_start(dp)
+    register_profile(dp)
 
 
 async def main():
