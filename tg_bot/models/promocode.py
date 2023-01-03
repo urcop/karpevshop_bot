@@ -35,35 +35,35 @@ class Promocode(Base):
             return result.first()
 
     @classmethod
-    async def get_promo(cls, code_name: str, session_maker: sessionmaker):
+    async def get_promo(cls, code_name: str, session_maker: sessionmaker) -> bool:
         async with session_maker() as db_session:
             sql = select(cls).where(code_name == cls.code_name)
             result = await db_session.execute(sql)
             return True if result.first() else False
 
     @classmethod
-    async def get_promo_type(cls, code_name: str, session_maker: sessionmaker):
+    async def get_promo_type(cls, code_name: str, session_maker: sessionmaker) -> str:
         async with session_maker() as db_session:
             sql = select(cls.currency).where(code_name == cls.code_name)
             result = await db_session.execute(sql)
-            return result.first()[0]
+            return result.scalar()
 
     @classmethod
-    async def is_active(cls, code_name: str, session_maker: sessionmaker):
+    async def get_promo_value(cls, code_name: str, session_maker: sessionmaker) -> int:
+        async with session_maker() as db_session:
+            sql = select(cls.value).where(code_name == cls.code_name)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def is_active(cls, code_name: str, session_maker: sessionmaker) -> bool:
         async with session_maker() as db_session:
             sql = select(cls.count_use).where(code_name == cls.code_name)
             result = await db_session.execute(sql)
             return True if int(result.first()[0]) > 0 else False
 
     @classmethod
-    async def get_promo_value(cls, code_name: str, session_maker: sessionmaker):
-        async with session_maker() as db_session:
-            sql = select(cls.value).where(code_name == cls.code_name)
-            result = await db_session.execute(sql)
-            return float(result.first()[0])
-
-    @classmethod
-    async def decrement(cls, code_name: str, session_maker: sessionmaker):
+    async def decrement(cls, code_name: str, session_maker: sessionmaker) -> 'Promocode':
         async with session_maker() as db_session:
             sql = update(
                 cls
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     async def test():
         config = load_config()
         session_maker = await create_db_session(config)
-        promo = await Promocode.get_promo_type('hui', session_maker)
+        promo = await Promocode.get_promo_value('hui', session_maker)
         print(promo)
 
 

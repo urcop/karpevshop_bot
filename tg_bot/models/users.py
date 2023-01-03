@@ -1,7 +1,11 @@
-from sqlalchemy import BigInteger, Column, String, Float, select, insert, func, ForeignKey, update, Date
-from sqlalchemy.orm import sessionmaker
+import asyncio
 from datetime import datetime
 
+from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
+from sqlalchemy.orm import sessionmaker
+
+from tg_bot.config import load_config
+from tg_bot.services.database import create_db_session
 from tg_bot.services.db_base import Base
 
 
@@ -10,8 +14,8 @@ class User(Base):
     telegram_id = Column(BigInteger, primary_key=True)
     username = Column(String(length=100))
     fullname = Column(String(length=100))
-    balance = Column(Float(), default=0.0)
-    gold = Column(Float, default=0.0)
+    balance = Column(Integer, default=0)
+    gold = Column(Integer, default=0)
     role = Column(String(length=100), default='user')
     reg_date = Column(Date, default=datetime.now().date())
 
@@ -41,7 +45,7 @@ class User(Base):
             return result.first()
 
     @classmethod
-    async def get_balance(cls, session_maker: sessionmaker, telegram_id: int):
+    async def get_balance(cls, session_maker: sessionmaker, telegram_id: int) -> int:
         async with session_maker() as db_session:
             sql = select(cls.balance).where(cls.telegram_id == telegram_id)
             request = await db_session.execute(sql)
@@ -49,7 +53,7 @@ class User(Base):
             return request.scalar()
 
     @classmethod
-    async def get_gold(cls, session_maker: sessionmaker, telegram_id: int):
+    async def get_gold(cls, session_maker: sessionmaker, telegram_id: int) -> int:
         async with session_maker() as db_session:
             sql = select(cls.gold).where(cls.telegram_id == telegram_id)
             request = await db_session.execute(sql)
@@ -61,11 +65,11 @@ class User(Base):
                            session_maker: sessionmaker,
                            telegram_id: int,
                            currency_type: str,
-                           value: int):
+                           value: float) -> 'User':
         async with session_maker() as db_session:
             if currency_type == 'g':
                 sql = update(
-                    cls.gold
+                    cls
                 ).where(
                     cls.telegram_id == telegram_id
                 ).values(
@@ -73,16 +77,18 @@ class User(Base):
                 )
             elif currency_type == 'm':
                 sql = update(
-                    cls.balance
+                    cls
                 ).where(
                     cls.telegram_id == telegram_id
                 ).values(
                     {'balance': cls.balance + value}
                 )
             result = await db_session.execute(sql)
-            return result.first()
+            await db_session.commit()
+            return result
+
     @staticmethod
-    async def count_referrals(session_maker: sessionmaker, user: "User"):
+    async def count_referrals(session_maker: sessionmaker, user: "User") -> int:
         async with session_maker() as db_session:
             sql = select(
                 func.count(Referral.telegram_id)

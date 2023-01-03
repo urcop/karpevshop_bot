@@ -1,7 +1,9 @@
+import logging
+
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
-from tg_bot.keyboards import inline_profile, reply_back_to_main
+from tg_bot.keyboards import inline_profile, reply_back_to_main, reply_main_menu
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.users import User
 from tg_bot.states.promo_state import PromoState
@@ -50,17 +52,19 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
     async with state.proxy() as data:
         data['code_name'] = message.text
-        promo = Promocode(code_name=data['code_name'])
-        is_valid = await promo.get_promo(code_name=data['code_name'], session_maker=session_maker)
+        promo_name = data['code_name']
+        is_valid = await Promocode.get_promo(code_name=promo_name, session_maker=session_maker)
         if is_valid:
-            is_active = await promo.is_active(code_name=data['code_name'], session_maker=session_maker)
+            is_active = await Promocode.is_active(code_name=promo_name, session_maker=session_maker)
             if is_active:
-                user = User(telegram_id=message.from_user.id)
-                promo_type = await promo.get_promo_type(code_name=data['code_name'], session_maker=session_maker)
-                promo_value = await promo.get_promo_value(code_name=data['code_name'], session_maker=session_maker)
-                await user.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
+                promo_type = await Promocode.get_promo_type(code_name=promo_name, session_maker=session_maker)
+                promo_value = await Promocode.get_promo_value(code_name=promo_name, session_maker=session_maker)
+                await User.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
                                         currency_type=promo_type, value=promo_value)
-                await message.answer('Промокод успешно применен')
+                logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
+                await Promocode.decrement(promo_name, session_maker)
+                await state.finish()
+                await message.answer('Промокод успешно применен', reply_markup=reply_main_menu.keyboard)
             else:
                 await message.answer('Промокод закончился')
         else:
