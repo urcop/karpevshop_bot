@@ -4,7 +4,7 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
 from tg_bot.keyboards import inline_profile, reply_back_to_main, reply_main_menu
-from tg_bot.models.promocode import Promocode
+from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
 from tg_bot.states.promo_state import PromoState
 
@@ -59,12 +59,19 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
             if is_active:
                 promo_type = await Promocode.get_promo_type(code_name=promo_name, session_maker=session_maker)
                 promo_value = await Promocode.get_promo_value(code_name=promo_name, session_maker=session_maker)
-                await User.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
-                                        currency_type=promo_type, value=promo_value)
-                logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
-                await Promocode.decrement(promo_name, session_maker)
-                await state.finish()
-                await message.answer('Промокод успешно применен', reply_markup=reply_main_menu.keyboard)
+                promo_id = await Promocode.get_id(code_name=promo_name, session_maker=session_maker)
+                if not await User2Promo.get_user_promo(promo_id=promo_id, user_id=message.from_user.id,
+                                                       session_maker=session_maker):
+                    await User.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
+                                            currency_type=promo_type, value=promo_value)
+                    logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
+                    await Promocode.decrement(promo_name, session_maker)
+                    await User2Promo.add_user_promo(user_id=message.from_user.id, promo_id=promo_id,
+                                                    session_maker=session_maker)
+                    await state.finish()
+                    await message.answer('Промокод успешно применен', reply_markup=reply_main_menu.keyboard)
+                else:
+                    await message.answer('Вы уже активировали этот промокод')
             else:
                 await message.answer('Промокод закончился')
         else:

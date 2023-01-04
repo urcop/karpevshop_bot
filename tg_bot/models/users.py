@@ -1,11 +1,8 @@
-import asyncio
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
 from sqlalchemy.orm import sessionmaker
 
-from tg_bot.config import load_config
-from tg_bot.services.database import create_db_session
 from tg_bot.services.db_base import Base
 
 

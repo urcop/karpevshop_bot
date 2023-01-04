@@ -1,6 +1,6 @@
 import asyncio
 
-from sqlalchemy import String, Column, Integer, insert, select, update
+from sqlalchemy import String, Column, Integer, insert, select, update, BigInteger, and_
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -76,16 +76,48 @@ class Promocode(Base):
             await db_session.commit()
             return result
 
+    @classmethod
+    async def get_id(cls, code_name: str, session_maker: sessionmaker) -> int:
+        async with session_maker() as db_session:
+            sql = select(cls.id).where(cls.code_name == code_name)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
     def __repr__(self):
         return f'Promo (ID: {self.id} - {self.code_name})'
+
+
+class User2Promo(Base):
+    __tablename__ = 'user2promo'
+    id = Column(Integer, primary_key=True)
+    promo_id = Column(Integer)
+    user_id = Column(BigInteger)
+
+    @classmethod
+    async def add_user_promo(cls, user_id: int, promo_id: int, session_maker: sessionmaker) -> 'User2Promo':
+        async with session_maker() as db_session:
+            sql = insert(cls).values(user_id=user_id, promo_id=promo_id)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def get_user_promo(cls, user_id: int, promo_id: int, session_maker: sessionmaker) -> bool:
+        async with session_maker() as db_session:
+            sql = select(cls).where(and_(cls.user_id == user_id, cls.promo_id == promo_id))
+            result = await db_session.execute(sql)
+            return True if result.first() else False
+
+    def __repr__(self):
+        return f'User2Promo - {self.user_id}, {self.promo_id}'
 
 
 if __name__ == '__main__':
     async def test():
         config = load_config()
         session_maker = await create_db_session(config)
-        promo = await Promocode.get_promo_value('hui', session_maker)
-        print(promo)
+        user2promo = await Promocode.get_id(code_name='hui', session_maker=session_maker)
+        print(user2promo)
 
 
     asyncio.run(test())
