@@ -1,6 +1,7 @@
 from aiogram import types, Dispatcher
 
 
+# Главное меню - Отзывы
 async def reviews(message: types.Message):
     await message.answer('Наши отзывы: @gkarpev_reviews')
 
