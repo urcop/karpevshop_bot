@@ -19,6 +19,7 @@ class Db:
 
 @dataclass
 class Misc:
+    chanel_id: str
     other_params: str = None
 
 
@@ -45,5 +46,7 @@ def load_config(path: str = None):
             database=env.str("DATABASE_NAME"),
             port=env.str("DATABASE_PORT"),
         ),
-        misc=Misc()
+        misc=Misc(
+            chanel_id=env.str("CHANNEL_ID"),
+        )
     )
