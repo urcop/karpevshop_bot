@@ -1,8 +1,11 @@
+import asyncio
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
 from sqlalchemy.orm import sessionmaker
 
+from tg_bot.config import load_config
+from tg_bot.services.database import create_db_session
 from tg_bot.services.db_base import Base
 
 
@@ -60,7 +63,7 @@ class User(Base):
                            session_maker: sessionmaker,
                            telegram_id: int,
                            currency_type: str,
-                           value: float) -> 'User':
+                           value: int) -> 'User':
         async with session_maker() as db_session:
             extra_context = {currency_type: cls.gold + value if currency_type == 'gold' else cls.balance + value}
             sql = update(cls).where(cls.telegram_id == telegram_id).values(extra_context)
@@ -80,6 +83,14 @@ class User(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_admins(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id).where(cls.role == 'admin')
+            result = await db_session.execute(sql)
+            return result.all()
+
 
     @staticmethod
     async def count_referrals(session_maker: sessionmaker, user: "User") -> int:
@@ -119,3 +130,13 @@ class Referral(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+
+if __name__ == '__main__':
+    async def blabla():
+        config = load_config()
+        session_maker = await create_db_session(config)
+
+        await User.add_currency(session_maker=session_maker, telegram_id=383212537, currency_type='balance', value=10)
+
+    asyncio.run(blabla())

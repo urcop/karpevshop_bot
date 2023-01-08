@@ -6,6 +6,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from tg_bot.config import load_config
 from tg_bot.handlers.cases import register_cases
+from tg_bot.handlers.payments import register_payments
 from tg_bot.handlers.profile import register_profile
 from tg_bot.handlers.reviews import register_reviews
 from tg_bot.handlers.start import register_start
@@ -30,7 +31,7 @@ def register_all_handlers(dp):
     register_reviews(dp)
     register_support(dp)
     register_cases(dp)
-
+    register_payments(dp)
 
 async def main():
     logging.basicConfig(
