@@ -48,7 +48,6 @@ async def case_action(call: types.CallbackQuery):
             reply_markup=await cases_keyboard(session_maker=session_maker)
         )
     elif action == 'buy':
-        # доделать покупку кейсов и реализовать шансы выпадение айтемов
         price = int(data[2])
         case_id = int(data[3])
         user_balance = await User.get_balance(
