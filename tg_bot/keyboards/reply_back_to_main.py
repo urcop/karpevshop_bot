@@ -5,5 +5,5 @@ keyboard = ReplyKeyboardMarkup(
         [
             KeyboardButton(text='⬅️Назад')
         ]
-    ],resize_keyboard=True
+    ], resize_keyboard=True
 )

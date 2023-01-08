@@ -4,7 +4,7 @@ from aiogram.utils.callback_data import CallbackData
 from tg_bot.models.case import Case
 
 cases_callback = CallbackData('case', 'id', 'name', 'price')
-case_action = CallbackData('case_action', 'action', 'price')
+case_action_callback = CallbackData('case_action', 'action', 'price', 'case_id')
 
 
 async def cases_keyboard(session_maker):
@@ -24,19 +24,21 @@ async def cases_keyboard(session_maker):
     return keyboard
 
 
-async def case_keyboard(case_price):
+async def case_keyboard(case_id, case_price):
     keyboard = InlineKeyboardMarkup(
         row_width=1,
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text=f'Купить за {case_price} руб',
-                    callback_data=case_action.new('buy', case_price))
+                    callback_data=case_action_callback.new('buy', case_price, case_id)
+                )
             ],
             [
                 InlineKeyboardButton(
                     text='Назад',
-                    callback_data=case_action.new('cancel', 0))
+                    callback_data=case_action_callback.new('cancel', 0, case_id)
+                )
             ]
         ]
     )

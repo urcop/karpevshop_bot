@@ -12,7 +12,7 @@ class Promocode(Base):
     __tablename__ = 'promocode'
     id = Column(Integer, primary_key=True)
     code_name = Column(String(length=100))
-    currency = Column(String(length=1))
+    currency = Column(String(length=20))
     count_use = Column(Integer)
     value = Column(Integer)
 

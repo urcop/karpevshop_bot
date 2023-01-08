@@ -46,7 +46,6 @@ class User(Base):
         async with session_maker() as db_session:
             sql = select(cls.balance).where(cls.telegram_id == telegram_id)
             request = await db_session.execute(sql)
-            await db_session.commit()
             return request.scalar()
 
     @classmethod
@@ -54,7 +53,6 @@ class User(Base):
         async with session_maker() as db_session:
             sql = select(cls.gold).where(cls.telegram_id == telegram_id)
             request = await db_session.execute(sql)
-            await db_session.commit()
             return request.scalar()
 
     @classmethod
@@ -64,22 +62,21 @@ class User(Base):
                            currency_type: str,
                            value: float) -> 'User':
         async with session_maker() as db_session:
-            if currency_type == 'g':
-                sql = update(
-                    cls
-                ).where(
-                    cls.telegram_id == telegram_id
-                ).values(
-                    {'gold': cls.gold + value}
-                )
-            elif currency_type == 'm':
-                sql = update(
-                    cls
-                ).where(
-                    cls.telegram_id == telegram_id
-                ).values(
-                    {'balance': cls.balance + value}
-                )
+            extra_context = {currency_type: cls.gold + value if currency_type == 'gold' else cls.balance + value}
+            sql = update(cls).where(cls.telegram_id == telegram_id).values(extra_context)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def take_currency(cls,
+                            session_maker: sessionmaker,
+                            telegram_id: int,
+                            currency_type: str,
+                            value: int) -> 'User':
+        async with session_maker() as db_session:
+            extra_context = {currency_type: cls.gold - value if currency_type == 'gold' else cls.balance - value}
+            sql = update(cls).where(cls.telegram_id == telegram_id).values(extra_context)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

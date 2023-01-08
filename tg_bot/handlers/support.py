@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import types, Dispatcher
 
 from tg_bot.keyboards import inline_support
@@ -45,8 +43,6 @@ async def answer_action(call: types.CallbackQuery):
     elif action == 'back':
         await call.message.delete()
         await call.message.answer(support_text(), reply_markup=inline_support.keyboard)
-
-    logging.info(call.bot['config'])
 
 
 def register_support(dp: Dispatcher):

@@ -37,5 +37,26 @@ class CaseItems(Base):
             result = await db_session.execute(sql)
             return result.all()
 
+    @classmethod
+    async def get_chances_items(cls, case_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.chance).where(cls.case_id == case_id)
+            result = await db_session.execute(sql)
+            return result.all()
+
+    @classmethod
+    async def get_names_items(cls, case_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.name).where(cls.case_id == case_id)
+            result = await db_session.execute(sql)
+            return result.all()
+
+    @classmethod
+    async def get_price_item(cls, item_name: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.game_price).where(cls.name == item_name)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
     def __repr__(self):
         return f'{self.id}:{self.case_id}:{self.name}:{self.game_price}:{self.chance}'
