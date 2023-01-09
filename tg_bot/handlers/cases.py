@@ -2,7 +2,7 @@ import random
 
 from aiogram import types, Dispatcher
 
-from tg_bot.keyboards.inline_cases import cases_keyboard, cases_callback, case_keyboard, case_action_callback
+from tg_bot.keyboards.inline.cases import cases_keyboard, cases_callback, case_keyboard, case_action_callback
 from tg_bot.models.case import CaseItems
 from tg_bot.models.users import User
 
@@ -70,7 +70,8 @@ async def case_action(call: types.CallbackQuery):
                                     currency_type='gold',
                                     value=item_price)
             await call.message.edit_text(
-                text=f'Поздравляем, вам выпало <strong>{dropped_item}</strong> стоимостью <strong>{item_price}G</strong>.\n'
+                text=f'Поздравляем, вам выпало <strong>{dropped_item}</strong> '
+                     f'стоимостью <strong>{item_price}G</strong>.\n'
                      f'На ваш счет зачислено {item_price} золота'
             )
         else:

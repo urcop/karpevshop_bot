@@ -3,13 +3,14 @@ import logging
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
-from tg_bot.keyboards import inline_profile, reply_back_to_main, reply_main_menu
+from tg_bot.keyboards.reply import main_menu, back_to_main
+from tg_bot.keyboards.inline import profile
 from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
 from tg_bot.states.promo_state import PromoState
 
 
-async def profile(message: types.Message):
+async def get_profile(message: types.Message):
     # при нажатии на кнопку Профиль
     session_maker = message.bot['db']
     user = User(telegram_id=message.from_user.id)
@@ -23,7 +24,7 @@ async def profile(message: types.Message):
         '⏰ Запросов на вывод золота: 0',
         '💵 Куплено золота: 32 за все время'
     ]
-    await message.answer('\n'.join(text), reply_markup=inline_profile.keyboard)
+    await message.answer('\n'.join(text), reply_markup=profile.keyboard)
 
 
 # Профиль -> РЕФЕРАЛЬНАЯ СИСТЕМА
@@ -44,7 +45,7 @@ async def referral_system(call: types.CallbackQuery):
 # Профиль -> ПРОМОКОД
 async def promocode(call: types.CallbackQuery):
     await call.message.delete()
-    await call.message.answer('Введите промокод', reply_markup=reply_back_to_main.keyboard)
+    await call.message.answer('Введите промокод', reply_markup=back_to_main.keyboard)
     await PromoState.code_name.set()
 
 
@@ -69,7 +70,7 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
                     await User2Promo.add_user_promo(user_id=message.from_user.id, promo_id=promo_id,
                                                     session_maker=session_maker)
                     await state.finish()
-                    await message.answer('Промокод успешно применен', reply_markup=reply_main_menu.keyboard)
+                    await message.answer('Промокод успешно применен', reply_markup=main_menu.keyboard)
                 else:
                     await message.answer('Вы уже активировали этот промокод')
             else:
@@ -107,7 +108,7 @@ async def rules(call: types.CallbackQuery):
 
 
 def register_profile(dp: Dispatcher):
-    dp.register_message_handler(profile, text="Профиль 📝")
+    dp.register_message_handler(get_profile, text="Профиль 📝")
     dp.register_callback_query_handler(referral_system, text="profile_referral_system")
     dp.register_callback_query_handler(promocode, text="profile_promocode")
     dp.register_message_handler(promocode_code_name, state=PromoState.code_name)
