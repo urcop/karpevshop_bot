@@ -3,8 +3,9 @@ import logging
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
-from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.keyboards.inline import profile
+from tg_bot.keyboards.reply import main_menu, back_to_main
+from tg_bot.models.history import BalanceHistory, GoldHistory
 from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
 from tg_bot.states.promo_state import PromoState
@@ -16,13 +17,15 @@ async def get_profile(message: types.Message):
     user = User(telegram_id=message.from_user.id)
     user_balance = await user.get_balance(session_maker, message.from_user.id)
     user_gold = await user.get_gold(session_maker, message.from_user.id)
+    count_purchases = await GoldHistory.get_count_user_purchase(session_maker=session_maker,
+                                                                telegram_id=message.from_user.id)
     text = [
         f'🔑 ID: {message.from_user.id}',
         f'👤 Никнейм: {message.from_user.username if message.from_user.username else message.from_user.first_name}',
         f'💸 Баланс: {user_balance} руб.',
         f'💰 Золото: {user_gold}',
         '⏰ Запросов на вывод золота: 0',
-        '💵 Куплено золота: 32 за все время'
+        f'💵 Куплено золота: {count_purchases} за все время'
     ]
     await message.answer('\n'.join(text), reply_markup=profile.keyboard)
 
@@ -65,6 +68,14 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
                                                        session_maker=session_maker):
                     await User.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
                                             currency_type=promo_type, value=promo_value)
+                    if promo_type == 'balance':
+                        await BalanceHistory.add_balance_purchase(session_maker=session_maker,
+                                                                  telegram_id=message.from_user.id,
+                                                                  money=promo_value)
+                    elif promo_type == 'gold':
+                        await GoldHistory.add_gold_purchase(session_maker=session_maker,
+                                                            telegram_id=message.from_user.id,
+                                                            gold=promo_value)
                     logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
                     await Promocode.decrement(promo_name, session_maker)
                     await User2Promo.add_user_promo(user_id=message.from_user.id, promo_id=promo_id,

@@ -6,6 +6,7 @@ from aiogram import types, Dispatcher
 from tg_bot.keyboards.inline.cases import cases_keyboard, cases_callback, case_keyboard, case_action_callback
 from tg_bot.keyboards.inline.channel_sub import generate_channel_sub_keyboard
 from tg_bot.models.case import CaseItems, FreeCaseCooldown
+from tg_bot.models.history import GoldHistory
 from tg_bot.models.users import User
 
 
@@ -39,6 +40,7 @@ async def case(call: types.CallbackQuery):
                         currency_type='gold',
                         value=gold
                     )
+                    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
                     await call.message.answer(f'На ваш счет зачислено {gold}G')
                 else:
                     time = await FreeCaseCooldown.get_remaining_time(session_maker=session_maker, telegram_id=user_id)
@@ -54,6 +56,7 @@ async def case(call: types.CallbackQuery):
                     currency_type='gold',
                     value=gold
                 )
+                await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
                 await call.message.edit_text(f'На ваш счет зачислено {gold}G')
         else:
             await call.message.edit_text(
@@ -112,6 +115,7 @@ async def case_action(call: types.CallbackQuery):
                      f'стоимостью <strong>{item_price}G</strong>.\n'
                      f'На ваш счет зачислено {item_price} золота'
             )
+            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=item_price)
         else:
             await call.message.edit_text('У вас недостаточно средств')
 

@@ -28,6 +28,16 @@ class User(Base):
         return user
 
     @classmethod
+    async def update_username_fullname(cls, telegram_id: int, session_maker: sessionmaker, username: str,
+                                       fullname: str) -> 'User':
+        async with session_maker() as db_session:
+            extra_context = {'username': username, 'fullname': fullname}
+            sql = update(cls).where(cls.telegram_id == telegram_id).values(extra_context)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
     async def add_user(cls,
                        session_maker: sessionmaker,
                        telegram_id: int,
@@ -91,7 +101,6 @@ class User(Base):
             result = await db_session.execute(sql)
             return result.all()
 
-
     @staticmethod
     async def count_referrals(session_maker: sessionmaker, user: "User") -> int:
         async with session_maker() as db_session:
@@ -138,5 +147,6 @@ if __name__ == '__main__':
         session_maker = await create_db_session(config)
 
         await User.add_currency(session_maker=session_maker, telegram_id=383212537, currency_type='balance', value=10)
+
 
     asyncio.run(blabla())

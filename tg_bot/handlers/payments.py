@@ -3,8 +3,9 @@ import logging
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
-from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.keyboards.inline import payment
+from tg_bot.keyboards.reply import main_menu, back_to_main
+from tg_bot.models.history import BalanceHistory
 from tg_bot.models.users import User
 from tg_bot.services.payment import Payment, NoPaymentFound, NotEnoughMoney
 from tg_bot.states.payment_state import PaymentState
@@ -81,8 +82,19 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                 currency_type='balance', value=int(payment.amount))
-        logging.info(f'Пользователь: {call.from_user.id} пополнил баланс на {payment.amount} руб')
+
+        text = [
+            f'Пользователь: {call.from_user.id}',
+            f'Пополнил баланс на {payment.amount} руб'
+        ]
+        logging.info(' '.join(text))
+        for admin in await User.get_admins(session_maker=session_maker):
+            await call.bot.send_message(chat_id=int(admin[0]), text='\n'.join(text))
+
         await call.message.answer('Успешно оплачено', reply_markup=main_menu.keyboard)
+        await BalanceHistory.add_balance_purchase(session_maker=session_maker,
+                                                  telegram_id=call.from_user.id,
+                                                  money=payment.amount)
     await state.finish()
 
 
@@ -114,7 +126,9 @@ async def get_payment_check(message: types.Message, state: FSMContext):
 def register_payments(dp: Dispatcher):
     dp.register_message_handler(get_payment, text="Пополнить баланс 💳")
     dp.register_message_handler(get_amount, state=PaymentState.amount)
-    dp.register_callback_query_handler(get_payment_system, payment.payment_choice_callback.filter(), state=PaymentState.amount)
+    dp.register_callback_query_handler(get_payment_system,
+                                       payment.payment_choice_callback.filter(),
+                                       state=PaymentState.amount)
     dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='qiwi')
     dp.register_callback_query_handler(payment_check, text='payment_check', state='*')
     dp.register_message_handler(get_payment_check, state='payment_check', content_types=['any'])

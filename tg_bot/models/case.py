@@ -1,11 +1,8 @@
-import asyncio
 import datetime
 
 from sqlalchemy import Column, String, Integer, Boolean, select, ForeignKey, BigInteger, insert, update
 from sqlalchemy.orm import sessionmaker
 
-from tg_bot.config import load_config
-from tg_bot.services.database import create_db_session
 from tg_bot.services.db_base import Base
 
 
@@ -120,15 +117,3 @@ class CaseItems(Base):
 
     def __repr__(self):
         return f'{self.id}:{self.case_id}:{self.name}:{self.game_price}:{self.chance}'
-
-
-if __name__ == '__main__':
-    async def hui():
-        config = load_config()
-        session = await create_db_session(config)
-
-        print(await FreeCaseCooldown.get_remaining_time(session_maker=session, telegram_id=383212537))
-        print(await FreeCaseCooldown.is_active(session_maker=session, telegram_id=383212537))
-
-
-    asyncio.run(hui())
