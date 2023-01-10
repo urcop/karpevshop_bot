@@ -1,9 +1,11 @@
+import logging
 import random
 
 from aiogram import types, Dispatcher
 
 from tg_bot.keyboards.inline.cases import cases_keyboard, cases_callback, case_keyboard, case_action_callback
-from tg_bot.models.case import CaseItems
+from tg_bot.keyboards.inline.channel_sub import generate_channel_sub_keyboard
+from tg_bot.models.case import CaseItems, FreeCaseCooldown
 from tg_bot.models.users import User
 
 
@@ -17,25 +19,61 @@ async def cases(message: types.Message):
 
 async def case(call: types.CallbackQuery):
     data = call.data.split(':')
+    user_id = call.from_user.id
     channel_id = call.bot['config'].misc.channel_id
-    # реализовать бесплатный кейс
     session_maker = call.bot['db']
     id = data[1]
     name = data[2]
     price = data[3]
-    text = [f'Содержимое кейса {name}:\n']
 
-    for item in await CaseItems.get_items_case_id(
-            case_id=int(id),
-            session_maker=session_maker):
-        item_split = str(item[0]).split(':')
-        name = item_split[2]
-        item_price = item_split[3]
-        text.append(f'{name} - {item_price}G')
+    if int(price) == 0:
+        user_channel_status = await call.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
+        if user_channel_status["status"] != 'left':
+            if await FreeCaseCooldown.is_exists(session_maker=session_maker, telegram_id=user_id):
+                if await FreeCaseCooldown.is_active(session_maker=session_maker, telegram_id=user_id):
+                    await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
+                    gold = random.randint(1, 3)
+                    await User.add_currency(
+                        session_maker=session_maker,
+                        telegram_id=user_id,
+                        currency_type='gold',
+                        value=gold
+                    )
+                    await call.message.answer(f'На ваш счет зачислено {gold}G')
+                else:
+                    time = await FreeCaseCooldown.get_remaining_time(session_maker=session_maker, telegram_id=user_id)
+                    await call.message.edit_text('Вы уже открыли бесплатный кейс.\n'
+                                                 f'Следующий кейс будет доступен через: {time}')
+            else:
+                await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id)
+                await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
+                gold = random.randint(1, 3)
+                await User.add_currency(
+                    session_maker=session_maker,
+                    telegram_id=user_id,
+                    currency_type='gold',
+                    value=gold
+                )
+                await call.message.edit_text(f'На ваш счет зачислено {gold}G')
+        else:
+            await call.message.edit_text(
+                'Чтобы получить бесплатный кейс вы должны быть подписаны на группу\n'
+                'После того как подписались нажмите кнопку "Я подписался"',
+                reply_markup=generate_channel_sub_keyboard(channel_id))
+    else:
+        text = [f'Содержимое кейса {name}:\n']
 
-    await call.message.edit_text(
-        text='\n'.join(text),
-        reply_markup=await case_keyboard(case_id=id, case_price=price))
+        for item in await CaseItems.get_items_case_id(
+                case_id=int(id),
+                session_maker=session_maker):
+            item_split = str(item[0]).split(':')
+            name = item_split[2]
+            item_price = item_split[3]
+            text.append(f'{name} - {item_price}G')
+
+        await call.message.edit_text(
+            text='\n'.join(text),
+            reply_markup=await case_keyboard(case_id=id, case_price=price))
 
 
 async def case_action(call: types.CallbackQuery):
