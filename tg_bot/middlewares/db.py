@@ -18,5 +18,7 @@ class DbMiddleware(LifetimeControllerMiddleware):
                 fullname=telegram_user.full_name,
                 username=telegram_user.username,
             )
+        await User.update_username_fullname(session_maker=session_maker, telegram_id=telegram_user.id,
+                                            username=telegram_user.username, fullname=telegram_user.full_name)
 
         data['user'] = user
