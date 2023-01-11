@@ -30,11 +30,11 @@ async def get_amount(message: types.Message, state: FSMContext):
             await message.answer('Введите целое число')
 
 
-async def get_payment_system(call: types.CallbackQuery, state: FSMContext):
+async def get_payment_system(call: types.CallbackQuery, callback_data: dict, state: FSMContext):
     async with state.proxy() as data:
         config = call.bot['config']
         payment_amount = data['amount']
-        payment_system = call.data.split(':')[1]
+        payment_system = callback_data.get('choice')
         if payment_system == 'QIWI':
             url = Payment(amount=payment_amount)
             url.create()

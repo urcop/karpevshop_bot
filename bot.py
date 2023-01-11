@@ -1,11 +1,13 @@
 import asyncio
 import logging
+
 from aiogram import Bot, Dispatcher
-from aiogram.contrib.fsm_storage.redis import RedisStorage2
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.contrib.fsm_storage.redis import RedisStorage2
 
 from tg_bot.config import load_config
 from tg_bot.handlers.cases import register_cases
+from tg_bot.handlers.games import register_games
 from tg_bot.handlers.gold import register_gold
 from tg_bot.handlers.payments import register_payments
 from tg_bot.handlers.profile import register_profile
@@ -34,6 +36,8 @@ def register_all_handlers(dp):
     register_cases(dp)
     register_payments(dp)
     register_gold(dp)
+    register_games(dp)
+
 
 async def main():
     logging.basicConfig(

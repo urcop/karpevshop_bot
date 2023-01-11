@@ -1,4 +1,3 @@
-import logging
 import random
 
 from aiogram import types, Dispatcher
@@ -18,18 +17,17 @@ async def cases(message: types.Message):
     )
 
 
-async def case(call: types.CallbackQuery):
-    data = call.data.split(':')
+async def case(call: types.CallbackQuery, callback_data: dict):
     user_id = call.from_user.id
     channel_id = call.bot['config'].misc.channel_id
     session_maker = call.bot['db']
-    id = data[1]
-    name = data[2]
-    price = data[3]
+    id = callback_data.get('id')
+    name = callback_data.get('name')
+    price = callback_data.get('price')
 
     if int(price) == 0:
         user_channel_status = await call.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
-        if user_channel_status["status"] != 'left':
+        if user_channel_status['status'] != 'left':
             if await FreeCaseCooldown.is_exists(session_maker=session_maker, telegram_id=user_id):
                 if await FreeCaseCooldown.is_active(session_maker=session_maker, telegram_id=user_id):
                     await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
@@ -79,9 +77,8 @@ async def case(call: types.CallbackQuery):
             reply_markup=await case_keyboard(case_id=id, case_price=price))
 
 
-async def case_action(call: types.CallbackQuery):
-    data = call.data.split(":")
-    action = data[1]
+async def case_action(call: types.CallbackQuery, callback_data: dict):
+    action = callback_data.get('action')
     session_maker = call.bot['db']
     if action == 'cancel':
         await call.message.edit_text(
@@ -89,8 +86,8 @@ async def case_action(call: types.CallbackQuery):
             reply_markup=await cases_keyboard(session_maker=session_maker)
         )
     elif action == 'buy':
-        price = int(data[2])
-        case_id = int(data[3])
+        price = int(callback_data.get('price'))
+        case_id = int(callback_data.get('case_id'))
         user_balance = await User.get_balance(
             session_maker=session_maker,
             telegram_id=call.from_user.id
