@@ -30,7 +30,7 @@ class Misc:
     ru_card: str
     ua_card: str
     phone: str
-    other_params: str = None
+    gold_rate: float
 
 
 @dataclass
@@ -69,5 +69,6 @@ def load_config(path: str = None):
             ua_card=env.str("UA_CARD"),
             ru_card=env.str("RUS_CARD"),
             phone=env.str("QIWI_WALLET"),
+            gold_rate=env.float("GOLD_RATE")
         )
     )

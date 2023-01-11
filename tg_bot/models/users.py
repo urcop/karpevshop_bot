@@ -1,4 +1,5 @@
 import asyncio
+import string
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
@@ -115,6 +116,18 @@ class User(Base):
             )
             result = await db_session.execute(sql)
             return result.scalar()
+
+    @classmethod
+    async def is_enough(cls, session_maker: sessionmaker, telegram_id: int,
+                        currency_type: str, count: int):
+        async with session_maker() as db_session:
+            if currency_type == 'balance':
+                sql = select(cls.balance).where(telegram_id == cls.telegram_id)
+            elif currency_type == 'gold':
+                sql = select(cls.gold).where(telegram_id == cls.telegram_id)
+            result = await db_session.execute(sql)
+            return True if result.scalar() >= count else False
+
 
     def __repr__(self):
         return f'User (ID: {self.telegram_id} - {self.fullname})'
