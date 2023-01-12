@@ -22,7 +22,6 @@ async def support_questions(message: types.Message):
 
 
 async def support_question(call: types.CallbackQuery, callback_data: dict):
-    await call.message.delete()
     answers = {
         1: 'Мы не являемся биржей валют, вы у нас покупаете золото, а не рубли. То есть, мы переводим ваши гривны в золото. После, золото в рубли.',
         2: 'Вывод золота происходит до 24 часов от запроса на вывод. Но в большинстве вывод происходит от нескольких секунд до часа.',
@@ -33,16 +32,15 @@ async def support_question(call: types.CallbackQuery, callback_data: dict):
         7: 'Вывод золота занимает до 24 часов. Но мы стараемся как можно быстрее вывести вам золото. В большинстве случаев, есть очередь, и пока она дойдёт до вас, может пройти немного времени. Но если вы уже пол часа как на 1 месте, это может быть из-за проблем с рынком ( сложно искать скин) или работник взял перерыв.',
     }
     question_id = int(callback_data.get('question_id'))
-    await call.message.answer(text=answers[question_id], reply_markup=support.answer_menu_keyboard)
+    await call.message.edit_text(text=answers[question_id], reply_markup=support.answer_menu_keyboard)
 
 
 async def answer_action(call: types.CallbackQuery, callback_data: dict):
-    action = callback_data.get('dict')
+    action = callback_data.get('action')
     if action == 'contact':
         ...
     elif action == 'back':
-        await call.message.delete()
-        await call.message.answer(support_text(), reply_markup=support.keyboard)
+        await call.message.edit_text(support_text(), reply_markup=support.keyboard)
 
 
 def register_support(dp: Dispatcher):
