@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func
+from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func, and_
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -33,6 +33,19 @@ class GoldHistory(Base):
             result = await db_session.execute(sql)
             return result.scalar()
 
+    @classmethod
+    async def get_history_period(cls, session_maker: sessionmaker, start_time: int, end_time: int):
+        async with session_maker() as db_session:
+            sql = select(
+                cls.telegram_id, func.sum(cls.gold)
+            ).where(
+                and_(cls.unix_date <= end_time, cls.unix_date >= start_time)
+            ).group_by(
+                cls.telegram_id
+            ).order_by(func.sum(cls.gold).desc())
+            result = await db_session.execute(sql)
+            return result.all()
+
     def __repr__(self):
         return f'{self.id}:{self.date}:{self.unix_date}'
 
@@ -54,3 +67,14 @@ class BalanceHistory(Base):
             await db_session.commit()
             return result
 
+
+if __name__ == '__main__':
+    async def main():
+        config = load_config()
+        session = await create_db_session(config)
+        print(await GoldHistory.get_history_period(session_maker=session,
+                                                   start_time=1673373204,
+                                                   end_time=1674029142))
+
+
+    asyncio.run(main())

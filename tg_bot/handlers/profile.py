@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from aiogram import types, Dispatcher
@@ -92,7 +93,29 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
 
 # Профиль -> ТОП НЕДЕЛИ
 async def top_week(call: types.CallbackQuery):
-    ...
+    session_maker = call.bot['db']
+    today = datetime.datetime.today()
+    today_weekday = datetime.datetime.weekday(today)
+    monday = (today - datetime.timedelta(today_weekday)).replace(hour=0, minute=0, second=0)
+    monday_unix = int(monday.timestamp())
+    sunday = (monday + datetime.timedelta(6)).replace(hour=23, minute=59, second=59)
+    sunday_unix = int(sunday.timestamp())
+
+    top_week_users = await GoldHistory.get_history_period(session_maker=session_maker,
+                                                          start_time=monday_unix,
+                                                          end_time=sunday_unix)
+    text = ['Топ донатеров недели']
+    if len(top_week_users) > 10:
+        stop = 10
+    else:
+        stop = len(top_week_users)
+
+    i = 0
+    while i < stop:
+        text.append(f'{i + 1}. {top_week_users[i][0]} - {top_week_users[i][1]} G')
+        i += 1
+
+    await call.message.edit_text('\n'.join(text))
 
 
 # Профиль -> ТОП МЕСЯЦА
