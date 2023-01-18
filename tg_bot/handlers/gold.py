@@ -89,7 +89,7 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                 currency_type='gold', value=data['count_gold'])
         await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            gold=price)
+                                            gold=data['count_gold'])
         logging.info(f'Пользователь - {call.from_user.id} пополнил баланс на {data["count_gold"]}G')
         await call.message.delete()
         await call.message.answer('Успешная покупка!', reply_markup=gold_menu_keyboard)
