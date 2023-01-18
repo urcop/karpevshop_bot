@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from environs import Env
 
 
@@ -16,12 +17,14 @@ class Db:
     database: str
     port: str
 
+
 @dataclass
 class Qiwi:
     token: str
     qiwi_pub_key: str
     qiwi_sec_key: str
     qiwi_phone: str
+
 
 @dataclass
 class Misc:
@@ -31,6 +34,7 @@ class Misc:
     ua_card: str
     phone: str
     gold_rate: float
+    tower_chance: float
 
 
 @dataclass
@@ -69,6 +73,7 @@ def load_config(path: str = None):
             ua_card=env.str("UA_CARD"),
             ru_card=env.str("RUS_CARD"),
             phone=env.str("QIWI_WALLET"),
-            gold_rate=env.float("GOLD_RATE")
+            gold_rate=env.float("GOLD_RATE"),
+            tower_chance=env.float("TOWER_CHANCE")
         )
     )
