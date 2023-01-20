@@ -10,36 +10,8 @@ from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.models.history import BalanceHistory, GoldHistory
 from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
+from tg_bot.services.top_generators import generate_next_top_text, generate_text_top
 from tg_bot.states.promo_state import PromoState
-
-
-async def generate_text_top(top_users: list, period: str):
-    period_text = 'недели' if period == 'week' else 'месяца'
-    if len(top_users) > 10:
-        stop = 10
-    else:
-        stop = len(top_users)
-
-    text = [f'Топ донатеров {period_text}:']
-    i = 0
-    while i < stop:
-        text.append(f'{i + 1}. {top_users[i][0]} - <code>{top_users[i][1]}</code> G')
-        i += 1
-    return text
-
-
-async def get_next_top(top_users: list, user_id: int):
-    i = 0
-    text = 'Вы не покупали золото в течении этого периода'
-    while i < len(top_users):
-        if i == 0 and top_users[i][0] == user_id:
-            text = f'Вы на {i + 1} месте.'
-            break
-        elif top_users[i][0] == user_id:
-            pred_golds = top_users[i - 1][1] - top_users[i][1]
-            text = f'Вы на {i + 1} месте. Чтобы обогнать следующего пользователя, вам нужно купить {pred_golds} G. Займите первое место, чтобы получить вознаграждение.'
-        i += 1
-    return text
 
 
 async def get_profile(message: types.Message):
@@ -136,7 +108,7 @@ async def top_week(call: types.CallbackQuery):
 
     text: list = await generate_text_top(top_users=top_week_users, period='week')
     await call.message.edit_text('\n'.join(text))
-    await call.message.answer(await get_next_top(top_users=top_week_users, user_id=call.from_user.id))
+    await call.message.answer(await generate_next_top_text(top_users=top_week_users, user_id=call.from_user.id))
 
 
 # Профиль -> ТОП МЕСЯЦА
@@ -153,7 +125,7 @@ async def top_month(call: types.CallbackQuery):
 
     text: list = await generate_text_top(top_users=top_month_users, period='month')
     await call.message.edit_text('\n'.join(text))
-    await call.message.answer(await get_next_top(top_users=top_month_users, user_id=call.from_user.id))
+    await call.message.answer(await generate_next_top_text(top_users=top_month_users, user_id=call.from_user.id))
 
 
 # Профиль -> ПРАВИЛА
