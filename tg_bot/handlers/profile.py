@@ -10,7 +10,7 @@ from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.models.history import BalanceHistory, GoldHistory
 from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
-from tg_bot.services.top_generators import generate_next_top_text, generate_text_top
+from tg_bot.misc.top_generators import generate_next_top_text, generate_text_top
 from tg_bot.states.promo_state import PromoState
 
 

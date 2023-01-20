@@ -11,10 +11,10 @@ from tg_bot.keyboards.inline.lotterytickets import generate_lottery_tickets_keyb
 from tg_bot.keyboards.inline.tower_game import tower_game_keyboard, tower_game_callback, tower_game_end_callback
 from tg_bot.keyboards.reply.back_to_gold_menu import back_to_gold_keyboard
 from tg_bot.keyboards.reply.gold_menu import gold_menu_keyboard
+from tg_bot.misc.tower_game import tower_game_session, calculate_tower_win
 from tg_bot.models.history import GoldHistory
 from tg_bot.models.lottery import LotteryTickets, TicketGames
 from tg_bot.models.users import User
-from tg_bot.services.tower_game import tower_game_session, calculate_tower_win
 from tg_bot.states.tower_game_state import TowerState
 
 
@@ -24,24 +24,22 @@ async def get_games(message: types.Message):
 
 async def get_game(call: types.CallbackQuery, callback_data: dict):
     game = callback_data.get("choice")
-    text = ''
-    if game == 'tower':
-        text = "Башня - это игра, где вы делаете ставку в золоте и угадываете направление башни, поднимаясь все выше. " \
-               "Чем выше вы поднимитесь, тем больше награда. " \
-               "Если вы не угадали, игра заканчивается. " \
-               "Максимальной коэффициент выигрыша 3X."
-    elif game == 'jackpot':
-        text = "Режим JackPot - Это предельно простой, но очень интересный режим. " \
-               "Все участники вносят любую ставку золотом и образуется общий банк. " \
-               "Каждый участник получает свой шанс на выигрыш, зависящий от его ставки. " \
-               "Чем больше ставка, тем больше шанс выиграть. " \
-               "Но и с маленьким шансом есть возможность выиграть весь банк! Мы берём 10% за выигрыш."
-    elif game == 'lottery':
-        text = "Мы запустили лотерею, покупайте билеты разной редкости, где вы сможете выиграть 10 000 золота! " \
-               "Есть 3 вида редкости билета и его куша, от самого маленького к большому. " \
-               "Выигрыш в билете зависит от вашей удачи."
+    text = {
+        'tower': "Башня - это игра, где вы делаете ставку в золоте и угадываете направление башни, поднимаясь все выше. "
+                 "Чем выше вы поднимитесь, тем больше награда. "
+                 "Если вы не угадали, игра заканчивается. "
+                 "Максимальной коэффициент выигрыша 3X.",
+        'jackpot': "Режим JackPot - Это предельно простой, но очень интересный режим. "
+                   "Все участники вносят любую ставку золотом и образуется общий банк. "
+                   "Каждый участник получает свой шанс на выигрыш, зависящий от его ставки. "
+                   "Чем больше ставка, тем больше шанс выиграть. "
+                   "Но и с маленьким шансом есть возможность выиграть весь банк! Мы берём 10% за выигрыш.",
+        'lottery': "Мы запустили лотерею, покупайте билеты разной редкости, где вы сможете выиграть 10 000 золота! "
+                   "Есть 3 вида редкости билета и его куша, от самого маленького к большому. "
+                   "Выигрыш в билете зависит от вашей удачи."
+    }
 
-    await call.message.edit_text(text, reply_markup=game_keyboard(game))
+    await call.message.edit_text(text[game], reply_markup=game_keyboard(game))
 
 
 async def tower(call: types.CallbackQuery):
