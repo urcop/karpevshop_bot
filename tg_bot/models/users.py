@@ -1,5 +1,4 @@
 import asyncio
-import string
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
@@ -27,6 +26,13 @@ class User(Base):
             request = await db_session.execute(sql)
             user: cls = request.scalar()
         return user
+
+    @classmethod
+    async def get_all_users(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id)
+            request = await db_session.execute(sql)
+            return request.all()
 
     @classmethod
     async def update_username_fullname(cls, telegram_id: int, session_maker: sessionmaker, username: str,
@@ -127,7 +133,6 @@ class User(Base):
                 sql = select(cls.gold).where(telegram_id == cls.telegram_id)
             result = await db_session.execute(sql)
             return True if result.scalar() >= count else False
-
 
     def __repr__(self):
         return f'User (ID: {self.telegram_id} - {self.fullname})'

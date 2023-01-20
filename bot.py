@@ -6,6 +6,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
 
 from tg_bot.config import load_config
+from tg_bot.filters.admin import AdminFilter
 from tg_bot.handlers.cases import register_cases
 from tg_bot.handlers.games import register_games
 from tg_bot.handlers.gold import register_gold
@@ -25,7 +26,7 @@ def register_all_middlewares(dp):
 
 
 def register_all_filters(dp):
-    ...
+    dp.bind_filter(AdminFilter)
 
 
 def register_all_handlers(dp):
