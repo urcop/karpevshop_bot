@@ -108,6 +108,13 @@ class User(Base):
             result = await db_session.execute(sql)
             return result.all()
 
+    @classmethod
+    async def get_supports(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id).where(cls.role == 'support')
+            result = await db_session.execute(sql)
+            return result.all()
+
     @staticmethod
     async def count_referrals(session_maker: sessionmaker, user: "User") -> int:
         async with session_maker() as db_session:

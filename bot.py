@@ -7,6 +7,8 @@ from aiogram.contrib.fsm_storage.redis import RedisStorage2
 
 from tg_bot.config import load_config
 from tg_bot.filters.admin import AdminFilter
+from tg_bot.filters.support import SupportFilter
+from tg_bot.handlers.admin import register_admin_handlers
 from tg_bot.handlers.cases import register_cases
 from tg_bot.handlers.games import register_games
 from tg_bot.handlers.gold import register_gold
@@ -27,6 +29,7 @@ def register_all_middlewares(dp):
 
 def register_all_filters(dp):
     dp.bind_filter(AdminFilter)
+    dp.bind_filter(SupportFilter)
 
 
 def register_all_handlers(dp):
@@ -38,6 +41,7 @@ def register_all_handlers(dp):
     register_payments(dp)
     register_gold(dp)
     register_games(dp)
+    register_admin_handlers(dp)
 
 
 async def main():
