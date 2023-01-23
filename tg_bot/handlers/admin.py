@@ -125,4 +125,4 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(add_promo, Command(['promo']), is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
-    # dp.register_message_handler(tell, Command(['tell']), content_types=['photo', 'text'], is_support=True)
+    dp.register_message_handler(tell, text_startswith='/tell', content_types=['photo', 'text'], is_support=True)
