@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import Dispatcher, types
 from aiogram.dispatcher.filters import Command
 from sqlalchemy.orm import sessionmaker
@@ -12,9 +10,15 @@ from tg_bot.services.broadcast import broadcast
 
 async def broadcaster(message: types.Message):
     session_maker = message.bot['db']
-    text = message.text[4:]
+    if message.content_type == 'photo':
+        text = message.caption[4:]
+        photo_id = message.photo[-1].file_id
+    else:
+        text = message.text[4:]
+        photo_id = None
     users = [i[0] for i in await User.get_all_users(session_maker=session_maker)]
-    await broadcast(bot=message.bot, users=users, text=text, disable_notifications=True)
+    await broadcast(bot=message.bot, users=users, text=text, disable_notifications=True,
+                    message_type=message.content_type, photo_id=photo_id)
 
 
 async def user_information(message: types.Message):
@@ -103,22 +107,22 @@ async def add_promo(message: types.Message):
 
 
 async def tell(message: types.Message):
-    text = message.text.split(' ')
+    text = message.text.split(' ') if message.content_type == 'text' else message.caption.split(' ')
     text.pop(0)
     user_id = int(text[0])
     text.pop(0)
     message_to_user = ' '.join(text)
-
-    await message.bot.send_message(user_id, message_to_user)
+    if message.content_type == 'text':
+        await message.bot.send_message(user_id, message_to_user)
+    elif message.content_type == 'photo':
+        await message.copy_to(user_id, caption=message_to_user)
 
 
 def register_admin_handlers(dp: Dispatcher):
-    dp.register_message_handler(broadcaster, Command(['ads']), is_admin=True)
+    dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
     dp.register_message_handler(give_currency, Command(['giveg', 'givem']), is_admin=True)
     dp.register_message_handler(add_promo, Command(['promo']), is_admin=True)
 
-    dp.register_message_handler(tell, Command(['tell']), is_admin=True)
-    dp.register_message_handler(tell, Command(['tell']), is_support=True)
-
-
+    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
+    # dp.register_message_handler(tell, Command(['tell']), content_types=['photo', 'text'], is_support=True)
