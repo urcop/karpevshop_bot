@@ -117,7 +117,9 @@ async def get_payment_check(message: types.Message, state: FSMContext):
         for admin in await User.get_admins(session_maker=session_maker):
             await message.copy_to(chat_id=int(admin[0]), caption='\n'.join(text))
 
-        await message.answer('Чек успешно отправлен', reply_markup=main_menu.keyboard)
+        await message.answer(
+            'Спасибо, ожидайте! Выполняется проверка отправленного чека. Проверка занимает до 24 часов.',
+            reply_markup=main_menu.keyboard)
         await state.finish()
     else:
         await message.answer('Пожалуйста, прикрепите фото')
