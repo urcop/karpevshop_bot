@@ -49,6 +49,16 @@ class GoldHistory(Base):
             return result.all()
 
     @classmethod
+    async def get_stats_params(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.gold))
+            else:
+                sql = select(func.sum(cls.gold)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def get_gold_user_period(cls, session_maker: sessionmaker, start_time: int, end_time: int, user_id: int):
         async with session_maker() as db_session:
             sql = select(
@@ -79,6 +89,65 @@ class BalanceHistory(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_stats_params(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.balance))
+            else:
+                sql = select(func.sum(cls.balance)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+
+class CaseHistory(Base):
+    __tablename__ = 'case_history'
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(BigInteger)
+    gold_won = Column(Integer)
+    money_spent = Column(Integer)
+    unix_date = Column(BigInteger, default=datetime.datetime.now().timestamp())
+    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+
+    @classmethod
+    async def add_case_open(cls, session_maker: sessionmaker, telegram_id: int,
+                            gold_won: int, money_spent: int):
+        async with session_maker() as db_session:
+            sql = insert(cls).values(telegram_id=telegram_id, gold_won=gold_won, money_spent=money_spent)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def get_case_stats_gold(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.gold_won))
+            else:
+                sql = select(func.sum(cls.gold_won)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def get_case_stats_money(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.money_spent))
+            else:
+                sql = select(func.sum(cls.money_spent)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def get_case_stats_opened(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.count(cls.id))
+            else:
+                sql = select(func.count(cls.id)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ from aiogram import Dispatcher, types
 from aiogram.dispatcher.filters import Command
 from sqlalchemy.orm import sessionmaker
 
-from tg_bot.models.history import GoldHistory, BalanceHistory
+from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.users import User
 from tg_bot.services.broadcast import broadcast
@@ -103,7 +103,7 @@ async def add_promo(message: types.Message):
 
     await Promocode.create_promo(session_maker=session_maker, code_name=name, currency=promo_type, count_use=count_use,
                                  value=value)
-    await message.answer(f'Промокод <b>{name}</b> на <b>{count_use}</b> использований успешно добавлен!"')
+    await message.answer(f'Промокод <b>{name}</b> на <b>{count_use}</b> использований успешно добавлен!')
 
 
 async def tell(message: types.Message):
@@ -118,6 +118,34 @@ async def tell(message: types.Message):
         await message.copy_to(user_id, caption=message_to_user)
 
 
+async def stat(message: types.Message):
+    session_maker = message.bot['db']
+    date = message.text.split(' ')
+    gold = await GoldHistory.get_stats_params(session_maker, date[1])
+    money = await BalanceHistory.get_stats_params(session_maker, date[1])
+    text = [
+        f'Статистика за {"все время" if date[1] == "all" else date[1]}',
+        f'Пополнено денег: {money}',
+        f'Продано золота: {gold}'
+    ]
+    await message.answer('\n'.join(text))
+
+
+async def cinfo(message: types.Message):
+    session_maker = message.bot['db']
+    date = message.text.split(' ')
+    money_spent = await CaseHistory.get_case_stats_money(session_maker=session_maker, date=date[1])
+    gold_won = await CaseHistory.get_case_stats_gold(session_maker=session_maker, date=date[1])
+    opened = await CaseHistory.get_case_stats_opened(session_maker=session_maker, date=date[1])
+    text = [
+        f'Статистика за {"все время" if date[1] == "all" else date[1]}',
+        f'Открыто кейсов: {opened}',
+        f'Потрачено денег: {money_spent}',
+        f'Выиграно золота: {gold_won}'
+    ]
+    await message.answer('\n'.join(text))
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
@@ -125,4 +153,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(add_promo, Command(['promo']), is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
-    dp.register_message_handler(tell, text_startswith='/tell', content_types=['photo', 'text'], is_support=True)
+    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_support=True)
+
+    dp.register_message_handler(stat, Command(['stat']), is_admin=True)
+    dp.register_message_handler(cinfo, Command(['cinfo']), is_admin=True)

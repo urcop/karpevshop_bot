@@ -5,7 +5,7 @@ from aiogram import types, Dispatcher
 from tg_bot.keyboards.inline.cases import cases_keyboard, cases_callback, case_keyboard, case_action_callback
 from tg_bot.keyboards.inline.channel_sub import generate_channel_sub_keyboard
 from tg_bot.models.case import CaseItems, FreeCaseCooldown
-from tg_bot.models.history import GoldHistory
+from tg_bot.models.history import GoldHistory, CaseHistory
 from tg_bot.models.users import User
 
 
@@ -112,7 +112,10 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
                      f'стоимостью <strong>{item_price}G</strong>.\n'
                      f'На ваш счет зачислено {item_price} золота'
             )
-            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=item_price)
+            await CaseHistory.add_case_open(session_maker=session_maker, telegram_id=call.from_user.id,
+                                            money_spent=price, gold_won=item_price)
+            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                gold=item_price)
         else:
             await call.message.edit_text('У вас недостаточно средств')
 
