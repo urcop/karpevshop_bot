@@ -17,11 +17,10 @@ class Season(Base):
 
     @classmethod
     async def create_new_season(cls, session_maker: sessionmaker):
-        now = datetime.datetime.now().timestamp()
         async with session_maker() as db_session:
-            current_id = await cls.get_current_season(session_maker, time_now=int(now))
+            current_id = await cls.get_last_season(session_maker)
             try:
-                sql = insert(cls).values(id=int(current_id[-1][0]) + 1)
+                sql = insert(cls).values(id=int(current_id) + 1)
             except:
                 sql = insert(cls).values(id=1)
             result = await db_session.execute(sql)
@@ -99,6 +98,13 @@ class Season2User(Base):
             await db_session.commit()
             return result
 
+    @classmethod
+    async def is_exists(cls, session_maker: sessionmaker, telegram_id: int, season_id: int):
+        async with session_maker() as db_session:
+            sql = select(cls).where(and_(cls.season_id == season_id, cls.telegram_id == telegram_id))
+            result = await db_session.execute(sql)
+            return True if result.first() else False
+
 
 if __name__ == '__main__':
     async def main():
@@ -106,8 +112,8 @@ if __name__ == '__main__':
         session = await create_db_session(config)
         now = int(datetime.datetime.now().timestamp())
 
-        # print(await Season.create_new_season(session_maker=session))
-        print(await Season.get_season_time(session_maker=session, id=1))
+        print(await Season.create_new_season(session_maker=session))
+        # print(await Season.check_available_season(session_maker=session))
 
 
     asyncio.run(main())

@@ -4,7 +4,7 @@ import datetime
 from aiogram import Bot
 
 from tg_bot.models.history import GoldHistory
-from tg_bot.models.seasons import Season
+from tg_bot.models.seasons import Season, Season2User
 from tg_bot.models.users import User
 
 
@@ -47,7 +47,24 @@ async def top_week(bot: Bot):
 
 async def start_new_season(bot: Bot):
     session_maker = bot['db']
-    if Season.check_available_season(session_maker):
+    if await Season.check_available_season(session_maker):
         return
+    prev_season_id = await Season.get_last_season(session_maker=session_maker)
+    times = await Season.get_season_time(session_maker=session_maker, id=prev_season_id)
+    top_user = await GoldHistory.get_history_period(session_maker=session_maker, start_time=times[0], end_time=times[1])
+    await Season2User.update_prefix(session_maker=session_maker, season_id=prev_season_id,
+                                    prefix='Всемогущественный', telegram_id=top_user[0][0])
+    await User.add_currency(session_maker=session_maker, telegram_id=top_user[0][0],
+                            currency_type='gold', value=3000)
 
-    now = datetime.datetime.now().timestamp()
+    await bot.send_message(chat_id=int(top_user[0][0]),
+                           text='🎉 Поздравляем, вы получили награду в виде 3000 золота за достижение префикса '
+                                '<strong>Всемогущественный</strong>',
+                           parse_mode='HTML')
+
+    await Season.create_new_season(session_maker=session_maker)
+    current_season_id = await Season.get_last_season(session_maker=session_maker)
+    users = await Season2User.get_user_season(session_maker=session_maker, season_id=prev_season_id)
+    for user_id in users:
+        await Season2User.add_user_to_season(session_maker=session_maker, season_id=current_season_id,
+                                             telegram_id=user_id[0])
