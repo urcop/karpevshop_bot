@@ -4,6 +4,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from tg_bot.config import load_config
 from tg_bot.filters.admin import AdminFilter
@@ -18,6 +19,7 @@ from tg_bot.handlers.reviews import register_reviews
 from tg_bot.handlers.start import register_start
 from tg_bot.handlers.support import register_support
 from tg_bot.middlewares.db import DbMiddleware
+from tg_bot.services.cron import top_month, top_week, start_new_season
 from tg_bot.services.database import create_db_session
 
 logger = logging.getLogger(__name__)
@@ -61,6 +63,19 @@ async def main():
         logger.info('db started')
     except Exception as e:
         logger.error(f'db can`t start cause: {e}')
+
+    scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
+    scheduler.add_job(top_month, trigger='cron', hour=0,
+                      minute=0, day=1, month='1-12',
+                      kwargs={'bot': bot})
+
+    scheduler.add_job(top_week, trigger='cron', hour=0,
+                      minute=0, day_of_week=0, kwargs={'bot': bot})
+
+    scheduler.add_job(start_new_season, trigger='cron', day='*',
+                      hour=0, minute=0, kwargs={'bot': bot})
+
+    scheduler.start()
 
     register_all_middlewares(dp)
     register_all_filters(dp)

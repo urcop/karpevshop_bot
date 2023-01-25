@@ -48,6 +48,17 @@ class GoldHistory(Base):
             result = await db_session.execute(sql)
             return result.all()
 
+    @classmethod
+    async def get_gold_user_period(cls, session_maker: sessionmaker, start_time: int, end_time: int, user_id: int):
+        async with session_maker() as db_session:
+            sql = select(
+                func.sum(cls.gold)
+            ).where(
+                and_(cls.unix_date <= end_time, cls.unix_date >= start_time, cls.telegram_id == user_id)
+            )
+            result = await db_session.execute(sql)
+            return result.scalar()
+
     def __repr__(self):
         return f'{self.id}:{self.date}:{self.unix_date}'
 
@@ -74,10 +85,12 @@ if __name__ == '__main__':
     async def main():
         config = load_config()
         session = await create_db_session(config)
-        top_users: list = await GoldHistory.get_history_period(session_maker=session,
-                                                               start_time=1673373204,
-                                                               end_time=1674029142)
+        top_user = await GoldHistory.get_gold_user_period(session_maker=session,
+                                                          start_time=1673373204,
+                                                          end_time=1674029142,
+                                                          user_id=383212537)
 
-        print(top_users.index())
+        print(top_user)
+
 
     asyncio.run(main())
