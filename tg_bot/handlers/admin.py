@@ -363,6 +363,16 @@ async def add_case_item(message: types.Message):
     await message.answer(f'Предмет {item_name} успешно добавлен.')
 
 
+async def delete_case_item(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    params.pop(0)
+    item_name = ' '.join(params)
+
+    await CaseItems.delete_case_item(item_name=item_name, session_maker=session_maker)
+    await message.answer(f'Предмет {item_name} удален')
+
+
 async def delete_item(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
@@ -373,6 +383,55 @@ async def delete_item(message: types.Message):
 
     await Item.delete_item(category=category, name=name, session_maker=session_maker)
     await message.answer('Предмет успешно удален')
+
+
+async def add_item(message: types.Message, state: FSMContext):
+    params = message.text.split(' ')
+    type_item = int(params[1])
+    category_item = int(params[2])
+    quality_item = int(params[3])
+
+    type_item_text = {
+        1: 'Оружие',
+        2: 'Наклейка',
+        3: 'Брелок'
+    }
+    category_item_text = {
+        0: 'Без категории',
+        1: 'Regular',
+        2: 'StatTrack'
+    }
+    quality_item_text = {
+        1: 'Arcane',
+        2: 'Legendary',
+        3: 'Epic',
+        4: 'Rare',
+    }
+    text = f"""
+Характеристики предмета:
+Тип: {type_item_text[type_item]}
+Категория: {category_item_text[category_item]}
+Качество: {quality_item_text[quality_item]}
+"""
+    data = {
+        'type': type_item,
+        'category': category_item,
+        'quality': quality_item,
+    }
+    await message.answer(text)
+    await message.answer('Укажите название предмета')
+    await state.set_state('add_item_name')
+    await state.update_data(data=data)
+
+
+async def add_item_name(message: types.Message, state: FSMContext):
+    session_maker = message.bot['db']
+    data = await state.get_data('add_item_name')
+    name = message.text
+    await Item.add_item(name=name, type=data['type'], category=data['category'], quality=data['quality'],
+                        session_maker=session_maker)
+    await message.answer('Предмет успешно добавлен')
+    await state.finish()
 
 
 async def delete_product(message: types.Message):
@@ -439,8 +498,11 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(add_case, Command(['addcase']), is_admin=True)
     dp.register_message_handler(delete_case, Command(['dcase']), is_admin=True)
     dp.register_message_handler(add_case_item, Command(['addcaseitem']), is_admin=True)
+    dp.register_message_handler(delete_case_item, Command(['dcaseitem']), is_admin=True)
     dp.register_message_handler(change_case_visible, Command(['casevisible']), is_admin=True)
     dp.register_message_handler(delete_item, Command(['ditem']), is_admin=True)
+    dp.register_message_handler(add_item, Command(['aitem']), is_admin=True)
+    dp.register_message_handler(add_item_name, state='add_item_name', is_admin=True)
     dp.register_message_handler(delete_product, Command(['dprod']), is_admin=True)
     dp.register_message_handler(add_product, Command(['addproduct']), is_admin=True)
     dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)

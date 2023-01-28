@@ -135,6 +135,14 @@ class CaseItems(Base):
             return result
 
     @classmethod
+    async def delete_case_item(cls, item_name: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = delete(cls).where(cls.name == item_name)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
     async def get_items_case_id(cls, case_id: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = select(cls).where(cls.case_id == case_id)
