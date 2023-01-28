@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, BigInteger, String, Boolean, insert, select, and_, update, delete
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, insert, select, and_, update, delete, Float
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -52,12 +52,12 @@ class WorkerHistory(Base):
     __tablename__ = 'worker_history'
     id = Column(Integer, primary_key=True)
     worker_id = Column(BigInteger)
-    gold = Column(Integer)
+    gold = Column(Float)
     unix_date = Column(Integer, default=datetime.datetime.now().timestamp())
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
-    async def add_worker_history(cls, worker_id: int, gold: int, session_maker: sessionmaker):
+    async def add_worker_history(cls, worker_id: int, gold: float, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = insert(cls).values(worker_id=worker_id, gold=gold)
             result = await db_session.execute(sql)

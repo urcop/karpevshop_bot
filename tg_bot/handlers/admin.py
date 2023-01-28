@@ -12,7 +12,7 @@ from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.users import User
-from tg_bot.models.workers import Worker, Support
+from tg_bot.models.workers import Worker, Support, WorkerHistory
 from tg_bot.services.broadcast import broadcast
 
 
@@ -193,6 +193,7 @@ async def delete_support(message: types.Message):
 async def job(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
     text = message.text.split(' ')
+    admins = [admin[0] for admin in await User.get_admins(session_maker)]
     if text[1] == 'off':
         await Worker.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
         await Support.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
@@ -204,10 +205,13 @@ async def job(message: types.Message, state: FSMContext):
             await Worker.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
             await state.set_state('worker_in_job')
             keyboard = worker_keyboard
-        elif await Support.auth_support(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
+        if await Support.auth_support(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
             await Support.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
             await state.set_state('support_in_job')
             keyboard = support_keyboard
+        if message.from_user.id in admins:
+            await state.set_state('admin_in_job')
+            keyboard = worker_keyboard
 
         await message.answer('Успешная авторизация', reply_markup=keyboard)
 
@@ -218,14 +222,17 @@ async def output(message: types.Message):
     if await OutputQueue.is_active(worker_id=message.from_user.id, session_maker=session_maker):
         await message.answer('Вы не завершили предыдущий вывод!')
         return
-
-    first_free_ticket = str((await OutputQueue.get_first_free_queue(session_maker))[0]).split(':')
-    id = int(first_free_ticket[0])
-    user = int(first_free_ticket[1])
-    gold = float(first_free_ticket[2])
-    photo = first_free_ticket[3]
-    item_id = int(first_free_ticket[4])
-    user_nickname = first_free_ticket[5]
+    first_free_ticket = await OutputQueue.get_first_free_queue(session_maker)
+    if first_free_ticket is None:
+        await message.answer('Нет активных запросов')
+        return
+    first_free_ticket_split = str((first_free_ticket[0]).split(':'))
+    id = int(first_free_ticket_split[0])
+    user = int(first_free_ticket_split[1])
+    gold = float(first_free_ticket_split[2])
+    photo = first_free_ticket_split[3]
+    item_id = int(first_free_ticket_split[4])
+    user_nickname = first_free_ticket_split[5]
 
     item_name = await Item.get_item_name(id=item_id, session_maker=session_maker)
     photo_file = InputFile(config.misc.base_dir / 'uploads' / 'outputs' / photo)
@@ -251,9 +258,14 @@ async def output(message: types.Message):
 async def finish(message: types.Message):
     session_maker = message.bot['db']
     admins = await User.get_admins(session_maker)
-    taken_ticket = str((await OutputQueue.taken_ticket(worker_id=message.from_user.id, session_maker=session_maker))[0]).split(':')
-    id = int(taken_ticket[0])
-    user = int(taken_ticket[1])
+    taken_ticket = await OutputQueue.taken_ticket(worker_id=message.from_user.id, session_maker=session_maker)
+    if taken_ticket is None:
+        await message.answer('У вас нет активных запросов')
+        return
+    taken_ticket_split = str((taken_ticket)[0]).split(':')
+    id = int(taken_ticket_split[0])
+    user = int(taken_ticket_split[1])
+    gold = float(taken_ticket_split[2])
     free_tickets = len(await OutputQueue.get_all_free_queue(session_maker=session_maker))
 
     for admin in admins:
@@ -264,6 +276,7 @@ async def finish(message: types.Message):
     await message.answer('Проверка закончена!\n'
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
+    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=gold, session_maker=session_maker)
 
 
 async def returns_output(call: types.CallbackQuery, callback_data: dict):
@@ -293,6 +306,10 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(delete_worker, Command(['djob']), is_admin=True)
     dp.register_message_handler(stat, Command(['stat']), is_admin=True)
     dp.register_message_handler(cinfo, Command(['cinfo']), is_admin=True)
+    dp.register_message_handler(job, Command(['job']), state=['admin_in_job', None], is_admin=True)
+    dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
+    dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)
+
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_support=True)
@@ -301,6 +318,8 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(finish, Command(['finish']), state='worker_in_job', is_worker=True)
     dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='worker_in_job',
                                        is_worker=True)
+    dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='admin_in_job',
+                                       is_admin=True)
 
     dp.register_message_handler(job, Command(['job']), state=['support_in_job', None], is_support=True)
     dp.register_message_handler(job, Command(['job']), state=['worker_in_job', None], is_worker=True)
