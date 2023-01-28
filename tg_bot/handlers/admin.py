@@ -5,15 +5,18 @@ from aiogram.types import InputFile
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.keyboards.inline.output_items import returns_output_button, returns_output_callback
-from tg_bot.keyboards.reply import main_menu
+from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.keyboards.reply.support import support_keyboard
 from tg_bot.keyboards.reply.worker import worker_keyboard
+from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
+from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.users import User
 from tg_bot.models.workers import Worker, Support, WorkerHistory
 from tg_bot.services.broadcast import broadcast
+from tg_bot.states.product import AddProduct
 
 
 async def broadcaster(message: types.Message):
@@ -295,6 +298,132 @@ async def returns_output(call: types.CallbackQuery, callback_data: dict):
     await call.bot.send_message(chat_id=user, text='Средства вернулись обратно на ваш баланс')
 
 
+async def worker_stats(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    worker_id = int(params[1])
+    date = params[2]
+    gold_issued = await WorkerHistory.get_worker_stats(worker_id=worker_id, date=date, session_maker=session_maker)
+    text = [
+        f'Статистика работника за {"все время" if date == "all" else date}',
+        f'Выведено {gold_issued} золота'
+    ]
+    await message.answer('\n'.join(text))
+
+
+async def add_case(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    params.pop(0)
+    price = int(params[0])
+    params.pop(0)
+    name = ' '.join(params)
+    await Case.add_case(name=name, price=price, session_maker=session_maker)
+    await message.answer(f'Кейс {name} успешно добавлен.')
+    await message.answer(f'CASE ID: <code>{await Case.get_case_id(name=name, session_maker=session_maker)}</code>')
+
+
+async def delete_case(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    name = params[1]
+    await Case.delete_case(name=name, session_maker=session_maker)
+    await message.answer(f'Кейс {name} удален')
+
+
+async def change_case_visible(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    case_id = int(params[1])
+    visible = bool(int(params[2]))
+    case_name = await Case.get_case_name(id=case_id, session_maker=session_maker)
+
+    await Case.change_visible(case_id=case_id, visible=visible, session_maker=session_maker)
+    text = {
+        False: f'Кейс {case_name} скрыт из списка',
+        True: f'Кейс {case_name} добавлен в список'
+    }
+    await message.answer(text[visible])
+
+
+async def add_case_item(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    case_id = int(params[1])
+    price = int(params[2])
+    chance = int(params[3])
+    params.pop(3)
+    params.pop(2)
+    params.pop(1)
+    params.pop(0)
+    item_name = ' '.join(params)
+
+    await CaseItems.add_case_item(case_id=case_id, game_price=price, chance=chance, item_name=item_name,
+                                  session_maker=session_maker)
+    await message.answer(f'Предмет {item_name} успешно добавлен.')
+
+
+async def delete_item(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    params.pop(0)
+    category = int(params[0])
+    params.pop(0)
+    name = ' '.join(params)
+
+    await Item.delete_item(category=category, name=name, session_maker=session_maker)
+    await message.answer('Предмет успешно удален')
+
+
+async def delete_product(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    name = params[1]
+    await Product.delete_product(name=name, session_maker=session_maker)
+    await message.answer('Товар удален!')
+
+
+async def add_product(message: types.Message):
+    await message.answer('Укажите название товара', reply_markup=back_to_main.keyboard)
+    await AddProduct.name.set()
+
+
+async def add_product_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['name'] = message.text
+        await message.answer('Укажите описание товара')
+        await AddProduct.description.set()
+
+
+async def add_product_description(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['description'] = message.text
+        await message.answer('Укажите цену товара')
+        await AddProduct.price.set()
+
+
+async def add_product_price(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['price'] = int(message.text)
+        await message.answer('Отправьте фото товара')
+        await AddProduct.photo.set()
+
+
+async def add_product_photo(message: types.Message, state: FSMContext):
+    session_maker = message.bot['db']
+    config = message.bot['config']
+    async with state.proxy() as data:
+        await Product.add_product(data['name'], data['description'], price=int(data['price']),
+                                  session_maker=session_maker)
+        product_id = await Product.get_id(name=data['name'], session_maker=session_maker)
+        photo_name = f'{product_id}.jpg'
+        await message.photo[-1].download(
+            destination_file=config.misc.base_dir / 'uploads' / 'aprods' / photo_name)
+        await Product.add_photo(id=product_id, photo=photo_name, session_maker=session_maker)
+        await message.answer('Товар успешно добавлен', reply_markup=main_menu.keyboard)
+        await state.finish()
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
@@ -306,6 +435,19 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(delete_worker, Command(['djob']), is_admin=True)
     dp.register_message_handler(stat, Command(['stat']), is_admin=True)
     dp.register_message_handler(cinfo, Command(['cinfo']), is_admin=True)
+    dp.register_message_handler(worker_stats, Command(['ijob']), is_admin=True)
+    dp.register_message_handler(add_case, Command(['addcase']), is_admin=True)
+    dp.register_message_handler(delete_case, Command(['dcase']), is_admin=True)
+    dp.register_message_handler(add_case_item, Command(['addcaseitem']), is_admin=True)
+    dp.register_message_handler(change_case_visible, Command(['casevisible']), is_admin=True)
+    dp.register_message_handler(delete_item, Command(['ditem']), is_admin=True)
+    dp.register_message_handler(delete_product, Command(['dprod']), is_admin=True)
+    dp.register_message_handler(add_product, Command(['addproduct']), is_admin=True)
+    dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)
+    dp.register_message_handler(add_product_description, state=AddProduct.description, is_admin=True)
+    dp.register_message_handler(add_product_price, state=AddProduct.price, is_admin=True)
+    dp.register_message_handler(add_product_photo, state=AddProduct.photo, content_types=['photo'], is_admin=True)
+
     dp.register_message_handler(job, Command(['job']), state=['admin_in_job', None], is_admin=True)
     dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)

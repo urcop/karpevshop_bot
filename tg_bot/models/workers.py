@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, BigInteger, String, Boolean, insert, select, and_, update, delete, Float
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, insert, select, and_, update, delete, Float, func
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -63,6 +63,16 @@ class WorkerHistory(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_worker_stats(cls, session_maker: sessionmaker, worker_id: int, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.gold)).where(cls.worker_id == worker_id)
+            else:
+                sql = select(func.sum(cls.gold)).where(and_(cls.date == date, cls.worker_id == worker_id))
+            result = await db_session.execute(sql)
+            return result.scalar()
 
 
 class Support(Base):

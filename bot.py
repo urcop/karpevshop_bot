@@ -14,6 +14,7 @@ from tg_bot.handlers.admin import register_admin_handlers
 from tg_bot.handlers.cases import register_cases
 from tg_bot.handlers.games import register_games
 from tg_bot.handlers.gold import register_gold
+from tg_bot.handlers.other_items import register_other_items
 from tg_bot.handlers.payments import register_payments
 from tg_bot.handlers.profile import register_profile
 from tg_bot.handlers.reviews import register_reviews
@@ -46,6 +47,7 @@ def register_all_handlers(dp):
     register_gold(dp)
     register_games(dp)
     register_admin_handlers(dp)
+    register_other_items(dp)
 
 
 async def main():

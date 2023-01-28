@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, String, Integer, Boolean, select, ForeignKey, BigInteger, insert, update
+from sqlalchemy import Column, String, Integer, Boolean, select, ForeignKey, BigInteger, insert, update, delete
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -11,7 +11,37 @@ class Case(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(120))
     price = Column(Integer)
-    visible = Column(Boolean)
+    visible = Column(Boolean, default=False)
+
+    @classmethod
+    async def add_case(cls, name: str, price: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = insert(cls).values(name=name, price=price)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def delete_case(cls, name: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = delete(cls).where(cls.name == name)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def get_case_id(cls, name: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.id).where(cls.name == name)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def get_case_name(cls, id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.name).where(cls.id == id)
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     @classmethod
     async def get_visible_cases(cls, session_maker: sessionmaker):
@@ -19,6 +49,14 @@ class Case(Base):
             sql = select(cls).where(cls.visible)
             result = await db_session.execute(sql)
             return result.all()
+
+    @classmethod
+    async def change_visible(cls, case_id: int, visible: bool, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = update(cls).where(cls.id == case_id).values({'visible': visible})
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
 
     def __repr__(self):
         return f'{self.id}:{self.name}:{self.price}'
@@ -86,6 +124,15 @@ class CaseItems(Base):
     name = Column(String(120))
     game_price = Column(Integer)
     chance = Column(Integer)
+
+    @classmethod
+    async def add_case_item(cls, case_id: int, game_price: int, chance: int, item_name: str,
+                            session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = insert(cls).values(case_id=case_id, game_price=game_price, chance=chance, name=item_name)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
 
     @classmethod
     async def get_items_case_id(cls, case_id: int, session_maker: sessionmaker):

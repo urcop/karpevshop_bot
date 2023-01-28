@@ -49,6 +49,14 @@ class Item(Base):
             result = await db_session.execute(sql)
             return result.scalar()
 
+    @classmethod
+    async def delete_item(cls, category: int, name: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = delete(cls).where(and_(cls.category == category, cls.name == name))
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
     def __repr__(self):
         return f'{self.id}:{self.name}:{self.type}:{self.category}:{self.quality}'
 
