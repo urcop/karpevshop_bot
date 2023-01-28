@@ -4,6 +4,8 @@ from aiogram.utils.callback_data import CallbackData
 support_callback = CallbackData('support', 'question_id')
 support_menu_callback = CallbackData('support_menu', 'action')
 
+take_ticket_callback = CallbackData('take_ticket', 'action', 'user_id', 'ticket_id')
+
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -34,3 +36,21 @@ answer_menu_keyboard = InlineKeyboardMarkup(
         ]
     ], row_width=1
 )
+
+
+async def take_ticket_keyboard(ticket_id, user_id):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Начать диалог',
+                                     callback_data=take_ticket_callback.new('start_dialog', user_id, ticket_id)),
+                InlineKeyboardButton(text='Отклонить',
+                                     callback_data=take_ticket_callback.new('cancel_dialog', user_id, ticket_id)),
+            ],
+            [
+                InlineKeyboardButton(text='Жалоба',
+                                     callback_data=take_ticket_callback.new('warn_dialog', user_id, ticket_id))
+            ]
+        ]
+    )
+    return keyboard

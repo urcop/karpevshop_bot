@@ -21,6 +21,7 @@ from tg_bot.handlers.reviews import register_reviews
 from tg_bot.handlers.start import register_start
 from tg_bot.handlers.support import register_support
 from tg_bot.middlewares.db import DbMiddleware
+from tg_bot.middlewares.support_middleware import SupportMiddleware
 from tg_bot.services.cron import top_month, top_week, start_new_season
 from tg_bot.services.database import create_db_session
 
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 def register_all_middlewares(dp):
     dp.setup_middleware(DbMiddleware())
+    dp.setup_middleware(SupportMiddleware())
 
 
 def register_all_filters(dp):
@@ -65,6 +67,7 @@ async def main():
     dp = Dispatcher(bot, storage=storage)
 
     bot['config'] = config
+    bot['dp'] = dp
     try:
         bot['db'] = await create_db_session(config)
         logger.info('db started')

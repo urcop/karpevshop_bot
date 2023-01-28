@@ -5,6 +5,7 @@ from aiogram.types import InputFile
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.keyboards.inline.output_items import returns_output_button, returns_output_callback
+from tg_bot.keyboards.inline.support import take_ticket_keyboard, take_ticket_callback
 from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.keyboards.reply.support import support_keyboard
 from tg_bot.keyboards.reply.worker import worker_keyboard
@@ -13,6 +14,7 @@ from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
+from tg_bot.models.support import Tickets
 from tg_bot.models.users import User
 from tg_bot.models.workers import Worker, Support, WorkerHistory
 from tg_bot.services.broadcast import broadcast
@@ -124,9 +126,9 @@ async def tell(message: types.Message):
     text.pop(0)
     message_to_user = ' '.join(text)
     if message.content_type == 'text':
-        await message.bot.send_message(user_id, message_to_user)
+        await message.bot.send_message(user_id, text=f'<b>Администратор отправил вам сообщение:</b> {message_to_user}')
     elif message.content_type == 'photo':
-        await message.copy_to(user_id, caption=message_to_user)
+        await message.copy_to(user_id, caption=f'<b>Администратор отправил вам сообщение:</b> {message_to_user}')
 
 
 async def stat(message: types.Message):
@@ -483,6 +485,49 @@ async def add_product_photo(message: types.Message, state: FSMContext):
         await state.finish()
 
 
+async def take(message: types.Message):
+    session_maker = message.bot['db']
+    ticket = await Tickets.get_available_ticket(session_maker=session_maker)
+    if not ticket:
+        await message.answer('Нет активных тикетов')
+        return
+    ticket_info = str(ticket[0]).split(':')
+    await Tickets.update_support_id(int(ticket_info[0]), support_id=message.from_user.id, session_maker=session_maker)
+    text = [
+        f'Тикет №{ticket_info[0]} от {ticket_info[3]}',
+        f'ID Пользователя: {ticket_info[1]}\n',
+        f'{ticket_info[2]}'
+    ]
+    await message.answer(text='\n'.join(text), reply_markup=await take_ticket_keyboard(ticket_info[0], ticket_info[1]))
+
+
+async def take_action(call: types.CallbackQuery, callback_data: dict, state: FSMContext):
+    session_maker = call.bot['db']
+    action = callback_data.get('action')
+    user_id = int(callback_data.get('user_id'))
+    ticket_id = int(callback_data.get('ticket_id'))
+    if action == 'cancel_dialog':
+        await call.message.delete()
+        await call.message.answer('Тикет отклонен')
+        await call.bot.send_message(chat_id=user_id, text='Ваш тикет отклонен!')
+        await Tickets.update_status(ticket_id=ticket_id, status=-2, session_maker=session_maker)
+    if action == 'start_dialog':
+        await call.message.edit_text('Вы начали диалог с пользователем')
+        support_id = await Support.get_support_id(user_id=call.from_user.id, session_maker=session_maker)
+        await call.bot.send_message(user_id, f'Агент тех поддержки №{support_id} начал диалог')
+        await Tickets.update_status(ticket_id=ticket_id, status=1, session_maker=session_maker)
+        await state.set_state('in_support')
+        dp: Dispatcher = call.bot['dp']
+        user_state = dp.current_state(chat=user_id, user=user_id)
+        await user_state.set_state('in_support')
+        await user_state.update_data(second_id=call.from_user.id)
+        await state.update_data(second_id=user_id)
+
+
+async def stopdialog(message: types.Message):
+    ...
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
@@ -513,6 +558,8 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(job, Command(['job']), state=['admin_in_job', None], is_admin=True)
     dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)
+    dp.register_message_handler(take, Command(['take']), state='admin_in_job', is_admin=True)
+    dp.register_message_handler(stopdialog, Command(['stopdialog']), state='admin_in_job', is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
 
@@ -527,3 +574,8 @@ def register_admin_handlers(dp: Dispatcher):
 
     dp.register_message_handler(job, Command(['job']), state=['support_in_job', None], is_support=True)
     dp.register_message_handler(job, Command(['job']), state=['worker_in_job', None], is_worker=True)
+
+    dp.register_message_handler(take, Command(['take']), state=['support_in_job', None], is_support=True)
+    dp.register_callback_query_handler(take_action, take_ticket_callback.filter(), state=['support_in_job', None],
+                                       is_support=True)
+    dp.register_message_handler(stopdialog, Command(['stopdialog']), state=['support_in_job', None], is_support=True)

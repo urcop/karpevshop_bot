@@ -1,6 +1,12 @@
+import logging
+
 from aiogram import types, Dispatcher
+from aiogram.dispatcher import FSMContext
 
 from tg_bot.keyboards.inline import support
+from tg_bot.models.support import Tickets
+from tg_bot.models.users import User
+from tg_bot.models.workers import Support
 
 
 def support_text():
@@ -35,15 +41,34 @@ async def support_question(call: types.CallbackQuery, callback_data: dict):
     await call.message.edit_text(text=answers[question_id], reply_markup=support.answer_menu_keyboard)
 
 
-async def answer_action(call: types.CallbackQuery, callback_data: dict):
+async def answer_action(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
+    session_maker = call.bot['db']
     action = callback_data.get('action')
     if action == 'contact':
-        ...
+        if await Tickets.is_active(user_id=call.from_user.id, session_maker=session_maker):
+            await call.message.edit_text('Напишите пожалуйста свой вопрос')
+            await state.set_state('support_message')
+        else:
+            await call.message.edit_text('У вас уже есть активный запрос в поддержку')
     elif action == 'back':
         await call.message.edit_text(support_text(), reply_markup=support.keyboard)
+
+
+async def support_message(message: types.Message, state: FSMContext):
+    session_maker = message.bot['db']
+    await Tickets.add_ticket(user_id=message.from_user.id, message=message.text, session_maker=session_maker)
+    await message.answer('Ожидайте, вам ответят в ближайшее время')
+    admins = [admin[0] for admin in await User.get_admins(session_maker=session_maker)]
+    active_supports = [support[0] for support in await Support.get_active(session_maker=session_maker)]
+    active_supports_and_admins = admins + active_supports
+    list(set(active_supports_and_admins))
+    for user in active_supports_and_admins:
+        await message.bot.send_message(user, 'Добавлен новый тикет')
+    await state.finish()
 
 
 def register_support(dp: Dispatcher):
     dp.register_message_handler(support_questions, text="Тех. поддержка 👤")
     dp.register_callback_query_handler(support_question, support.support_callback.filter())
     dp.register_callback_query_handler(answer_action, support.support_menu_callback.filter())
+    dp.register_message_handler(support_message, state='support_message')

@@ -114,6 +114,20 @@ class Support(Base):
             await db_session.commit()
             return result
 
+    @classmethod
+    async def get_active(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.user_id).where(cls.active)
+            result = await db_session.execute(sql)
+            return result.all()
+
+    @classmethod
+    async def get_support_id(cls, user_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.id).where(cls.user_id == user_id)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
 
 if __name__ == '__main__':
     async def main():
