@@ -1,10 +1,18 @@
 from aiogram import Dispatcher, types
+from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
+from aiogram.types import InputFile
 from sqlalchemy.orm import sessionmaker
 
+from tg_bot.keyboards.inline.output_items import returns_output_button, returns_output_callback
+from tg_bot.keyboards.reply import main_menu
+from tg_bot.keyboards.reply.support import support_keyboard
+from tg_bot.keyboards.reply.worker import worker_keyboard
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
+from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.users import User
+from tg_bot.models.workers import Worker, Support
 from tg_bot.services.broadcast import broadcast
 
 
@@ -146,14 +154,153 @@ async def cinfo(message: types.Message):
     await message.answer('\n'.join(text))
 
 
+async def add_worker(message: types.Message):
+    session_maker = message.bot['db']
+    text = message.text.split(' ')
+    await User.set_role(user_id=int(text[1]), role='worker', session_maker=session_maker)
+    await Worker.add_worker(user_id=int(text[1]), password=text[2], session_maker=session_maker)
+    await message.answer('Работник добавлен!')
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас назначили работником')
+
+
+async def delete_worker(message: types.Message):
+    session_maker = message.bot['db']
+    text = message.text.split(' ')
+    await User.set_role(user_id=int(text[1]), role='user', session_maker=session_maker)
+    await Worker.delete_worker(user_id=int(text[1]), session_maker=session_maker)
+    await message.answer('Работник удален!')
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас сняли с должности работника')
+
+
+async def add_support(message: types.Message):
+    session_maker = message.bot['db']
+    text = message.text.split(' ')
+    await User.set_role(user_id=int(text[1]), role='support', session_maker=session_maker)
+    await Support.add_support(user_id=int(text[1]), password=text[2], session_maker=session_maker)
+    await message.answer('Работник добавлен!')
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас назначили работником тех поддержки')
+
+
+async def delete_support(message: types.Message):
+    session_maker = message.bot['db']
+    text = message.text.split(' ')
+    await User.set_role(user_id=int(text[1]), role='user', session_maker=session_maker)
+    await Support.delete_support(user_id=int(text[1]), session_maker=session_maker)
+    await message.answer('Работник тех. поддержки удален!')
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас сняли с должности работника тех. поддержки')
+
+
+async def job(message: types.Message, state: FSMContext):
+    session_maker = message.bot['db']
+    text = message.text.split(' ')
+    if text[1] == 'off':
+        await Worker.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
+        await Support.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
+        await message.answer('Вы закончили работу', reply_markup=main_menu.keyboard)
+        await state.finish()
+    else:
+        keyboard = None
+        if await Worker.auth_worker(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
+            await Worker.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
+            await state.set_state('worker_in_job')
+            keyboard = worker_keyboard
+        elif await Support.auth_support(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
+            await Support.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
+            await state.set_state('support_in_job')
+            keyboard = support_keyboard
+
+        await message.answer('Успешная авторизация', reply_markup=keyboard)
+
+
+async def output(message: types.Message):
+    session_maker = message.bot['db']
+    config = message.bot['config']
+    if await OutputQueue.is_active(worker_id=message.from_user.id, session_maker=session_maker):
+        await message.answer('Вы не завершили предыдущий вывод!')
+        return
+
+    first_free_ticket = str((await OutputQueue.get_first_free_queue(session_maker))[0]).split(':')
+    id = int(first_free_ticket[0])
+    user = int(first_free_ticket[1])
+    gold = float(first_free_ticket[2])
+    photo = first_free_ticket[3]
+    item_id = int(first_free_ticket[4])
+    user_nickname = first_free_ticket[5]
+
+    item_name = await Item.get_item_name(id=item_id, session_maker=session_maker)
+    photo_file = InputFile(config.misc.base_dir / 'uploads' / 'outputs' / photo)
+
+    await OutputQueue.set_worker(worker_id=message.from_user.id, id=id, session_maker=session_maker)
+
+    admins = await User.get_admins(session_maker)
+    for admin in admins:
+        await message.bot.send_message(chat_id=admin[0],
+                                       text=f'{message.from_user.id} взял запрос пользователя {user}')
+
+    text = [
+        f'🔑ID: <code>{user}</code>',
+        f'🔫Предмет: {item_name}',
+        f'💵Цена предмета: {gold}',
+        f'🔗Ссылка для связи https://t.me/{user_nickname}'
+    ]
+    await message.answer_photo(photo=photo_file, caption='\n'.join(text),
+                               reply_markup=await returns_output_button(user_id=user, gold=int(int(gold) * 0.8),
+                                                                        ticket_id=id))
+
+
+async def finish(message: types.Message):
+    session_maker = message.bot['db']
+    admins = await User.get_admins(session_maker)
+    taken_ticket = str((await OutputQueue.taken_ticket(worker_id=message.from_user.id, session_maker=session_maker))[0]).split(':')
+    id = int(taken_ticket[0])
+    user = int(taken_ticket[1])
+    free_tickets = len(await OutputQueue.get_all_free_queue(session_maker=session_maker))
+
+    for admin in admins:
+        await message.bot.send_message(chat_id=admin[0],
+                                       text=f'{message.from_user.id} завершил запрос пользователя {user}')
+    await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
+    await message.bot.send_message(chat_id=user, text='🎉 Запрос на вывод золота, успешно завершён!')
+    await message.answer('Проверка закончена!\n'
+                         f'Впереди еще {free_tickets}\n'
+                         'Нажмите /output')
+
+
+async def returns_output(call: types.CallbackQuery, callback_data: dict):
+    session_maker = call.bot['db']
+    user = int(callback_data.get('user_id'))
+    gold = int(callback_data.get('gold'))
+    id = int(callback_data.get('ticket_id'))
+    await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
+    admins = await User.get_admins(session_maker)
+    for admin in admins:
+        await call.bot.send_message(chat_id=admin[0],
+                                    text=f'{call.from_user.id} выполнил возврат запроса пользователя {user}')
+    await call.message.delete()
+    await User.add_currency(session_maker, user, currency_type='gold', value=gold)
+    await call.message.answer('Средства возвращены на баланс пользователя')
+    await call.bot.send_message(chat_id=user, text='Средства вернулись обратно на ваш баланс')
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
     dp.register_message_handler(give_currency, Command(['giveg', 'givem']), is_admin=True)
     dp.register_message_handler(add_promo, Command(['promo']), is_admin=True)
-
-    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
-    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_support=True)
-
+    dp.register_message_handler(add_worker, Command(['ajob']), is_admin=True)
+    dp.register_message_handler(add_support, Command(['arep']), is_admin=True)
+    dp.register_message_handler(delete_support, Command(['drep']), is_admin=True)
+    dp.register_message_handler(delete_worker, Command(['djob']), is_admin=True)
     dp.register_message_handler(stat, Command(['stat']), is_admin=True)
     dp.register_message_handler(cinfo, Command(['cinfo']), is_admin=True)
+    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
+
+    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_support=True)
+
+    dp.register_message_handler(output, Command(['output']), state='worker_in_job', is_worker=True)
+    dp.register_message_handler(finish, Command(['finish']), state='worker_in_job', is_worker=True)
+    dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='worker_in_job',
+                                       is_worker=True)
+
+    dp.register_message_handler(job, Command(['job']), state=['support_in_job', None], is_support=True)
+    dp.register_message_handler(job, Command(['job']), state=['worker_in_job', None], is_worker=True)

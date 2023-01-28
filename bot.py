@@ -9,6 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from tg_bot.config import load_config
 from tg_bot.filters.admin import AdminFilter
 from tg_bot.filters.support import SupportFilter
+from tg_bot.filters.worker import WorkerFilter
 from tg_bot.handlers.admin import register_admin_handlers
 from tg_bot.handlers.cases import register_cases
 from tg_bot.handlers.games import register_games
@@ -32,6 +33,7 @@ def register_all_middlewares(dp):
 def register_all_filters(dp):
     dp.bind_filter(AdminFilter)
     dp.bind_filter(SupportFilter)
+    dp.bind_filter(WorkerFilter)
 
 
 def register_all_handlers(dp):
@@ -54,7 +56,10 @@ async def main():
     config = load_config('.env')
 
     bot = Bot(token=config.bot.token, parse_mode='HTML')
-    storage = RedisStorage2() if config.bot.use_redis else MemoryStorage()
+    storage = RedisStorage2(host=config.redis.host,
+                            password=config.redis.password,
+                            port=config.redis.port) if config.bot.use_redis else MemoryStorage()
+    logger.info('storage creating')
     dp = Dispatcher(bot, storage=storage)
 
     bot['config'] = config

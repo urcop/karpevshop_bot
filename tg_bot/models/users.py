@@ -109,6 +109,13 @@ class User(Base):
             return result.all()
 
     @classmethod
+    async def get_workers(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id).where(cls.role == 'worker')
+            result = await db_session.execute(sql)
+            return result.all()
+
+    @classmethod
     async def get_supports(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = select(cls.telegram_id).where(cls.role == 'support')
@@ -140,6 +147,14 @@ class User(Base):
                 sql = select(cls.gold).where(telegram_id == cls.telegram_id)
             result = await db_session.execute(sql)
             return True if result.scalar() >= count else False
+
+    @classmethod
+    async def set_role(cls, user_id: int, role: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = update(cls).where(user_id == cls.telegram_id).values({'role': role})
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
 
     def __repr__(self):
         return f'User (ID: {self.telegram_id} - {self.fullname})'

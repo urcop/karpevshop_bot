@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from environs import Env
 
@@ -7,6 +8,13 @@ from environs import Env
 class TgBot:
     token: str
     use_redis: bool
+
+
+@dataclass
+class Redis:
+    host: str
+    password: str
+    port: str
 
 
 @dataclass
@@ -35,11 +43,13 @@ class Misc:
     phone: str
     gold_rate: float
     tower_chance: float
+    base_dir: Path
 
 
 @dataclass
 class Config:
     bot: TgBot
+    redis: Redis
     db: Db
     qiwi: Qiwi
     misc: Misc
@@ -53,6 +63,11 @@ def load_config(path: str = None):
         bot=TgBot(
             token=env.str("BOT_TOKEN"),
             use_redis=env.bool("USE_REDIS"),
+        ),
+        redis=Redis(
+            host=env.str("REDIS_HOST"),
+            password=env.str("REDIS_PASSWORD"),
+            port=env.str("REDIS_PORT"),
         ),
         db=Db(
             host=env.str("DATABASE_HOST"),
@@ -74,6 +89,7 @@ def load_config(path: str = None):
             ru_card=env.str("RUS_CARD"),
             phone=env.str("QIWI_WALLET"),
             gold_rate=env.float("GOLD_RATE"),
-            tower_chance=env.float("TOWER_CHANCE")
+            tower_chance=env.float("TOWER_CHANCE"),
+            base_dir=Path(__file__).resolve().parent.parent
         )
     )
