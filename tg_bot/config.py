@@ -32,6 +32,7 @@ class Qiwi:
     qiwi_pub_key: str
     qiwi_sec_key: str
     qiwi_phone: str
+    min_payment_qiwi: int
 
 
 @dataclass
@@ -82,6 +83,7 @@ def load_config(path: str = None):
             qiwi_pub_key=env.str("QIWI_PUB_KEY"),
             qiwi_sec_key=env.str("QIWI_SEC_KEY"),
             qiwi_phone=env.str("QIWI_WALLET"),
+            min_payment_qiwi=env.int("MIN_PAYMENT_QIWI")
         ),
         misc=Misc(
             channel_id=env.str("CHANNEL_ID"),

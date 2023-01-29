@@ -180,13 +180,20 @@ class Referral(Base):
             await db_session.commit()
             return result
 
+    @classmethod
+    async def get_referrer(cls, telegram_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.referrer).where(cls.telegram_id == telegram_id)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
 
 if __name__ == '__main__':
     async def blabla():
         config = load_config()
         session_maker = await create_db_session(config)
 
-        await User.add_currency(session_maker=session_maker, telegram_id=383212537, currency_type='balance', value=10)
+        await Referral.get_referrer(session_maker=session_maker, telegram_id=5667987919)
 
 
     asyncio.run(blabla())

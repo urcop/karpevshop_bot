@@ -35,13 +35,8 @@ async def back_button(message: types.Message):
 
 
 async def gold_calculate(message: types.Message, state: FSMContext):
-    await state.set_state('calculate_gold')
     await message.answer('🥇 Введите количество золота', reply_markup=back_to_gold_keyboard)
-
-
-async def gold_exchange(message: types.Message, state: FSMContext):
-    await message.answer('🥇 Введите количество золота для пополнения', reply_markup=back_to_gold_keyboard)
-    await state.set_state('get_count_gold_exchange')
+    await state.set_state('calculate_gold')
 
 
 async def get_gold_count(message: types.Message, state: FSMContext):
@@ -54,12 +49,17 @@ async def get_gold_count(message: types.Message, state: FSMContext):
             return
 
         if data['count_gold'] >= config.misc.min_payment_value:
-            price = int(data['count_gold'] * config.misc.gold_rate)
-            await message.answer(f'Цена за {data["count_gold"]} золота, {price} руб.', reply_markup=gold_menu_keyboard)
-            await state.finish()
+            price = round(data['count_gold'] * config.misc.gold_rate)
+            await message.answer(f'Цена за {data["count_gold"]} золота, {price} руб.',
+                                 reply_markup=back_to_gold_keyboard)
         else:
             await message.answer(f'Можно купить минимум {config.misc.min_payment_value + 1} золота')
             return
+
+
+async def gold_exchange(message: types.Message, state: FSMContext):
+    await message.answer('🥇 Введите количество золота для пополнения', reply_markup=back_to_gold_keyboard)
+    await state.set_state('get_count_gold_exchange')
 
 
 async def get_count_gold_exchange(message: types.Message, state: FSMContext):
@@ -73,9 +73,9 @@ async def get_count_gold_exchange(message: types.Message, state: FSMContext):
             return
 
         if data['count_gold'] >= config.misc.min_payment_value:
-            price = int(data['count_gold'] * config.misc.gold_rate)
+            price = round(data['count_gold'] * config.misc.gold_rate)
             if await User.is_enough(session_maker=session_maker, telegram_id=message.from_user.id,
-                                    currency_type='balance', count=data['count_gold']):
+                                    currency_type='balance', count=price):
                 await message.answer(f'С вашего счета будет списано {price} руб. за {message.text} золота.',
                                      reply_markup=access_keyboard)
 
@@ -93,7 +93,7 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         session_maker = call.bot['db']
         config = call.bot['config']
-        price = int(data['count_gold'] * config.misc.gold_rate)
+        price = round(data['count_gold'] * config.misc.gold_rate)
         await User.take_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                  currency_type='balance', value=price)
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
@@ -342,8 +342,8 @@ def register_gold(dp: Dispatcher):
     dp.register_message_handler(back_button, text='Главное меню ⬅️')
     dp.register_message_handler(back_to_gold_menu, text='Назад⬅️', state='*')
     dp.register_message_handler(gold_calculate, text='Посчитать 🥇')
-    dp.register_message_handler(gold_exchange, text='Пополнить 🥇')
     dp.register_message_handler(get_gold_count, state='calculate_gold')
+    dp.register_message_handler(gold_exchange, text='Пополнить 🥇')
     dp.register_message_handler(get_count_gold_exchange, state='get_count_gold_exchange')
     dp.register_callback_query_handler(access_buy, state='get_count_gold_exchange', text='access_buy_gold')
 

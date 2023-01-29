@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
@@ -8,15 +10,15 @@ from tg_bot.keyboards.inline.output_items import returns_output_button, returns_
 from tg_bot.keyboards.inline.support import take_ticket_keyboard, take_ticket_callback, report_ticket_confirm, \
     report_ticket_callback
 from tg_bot.keyboards.reply import main_menu, back_to_main
-from tg_bot.keyboards.reply.support import support_keyboard, user_support_keyboard
-from tg_bot.keyboards.reply.worker import worker_keyboard
+from tg_bot.keyboards.reply.admin import admin_keyboard
+from tg_bot.keyboards.reply.support import user_support_keyboard
 from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.support import Tickets, SupportBan
-from tg_bot.models.users import User
+from tg_bot.models.users import User, Referral
 from tg_bot.models.workers import Worker, Support, WorkerHistory
 from tg_bot.services.broadcast import broadcast
 from tg_bot.states.product import AddProduct
@@ -41,8 +43,8 @@ async def user_information(message: types.Message):
     user_id = int(text[1])
     user_balance = await User.get_balance(session_maker=session_maker, telegram_id=user_id)
     user_gold = await User.get_gold(session_maker=session_maker, telegram_id=user_id)
-    count_purchases = await GoldHistory.get_count_user_purchase(session_maker=session_maker,
-                                                                telegram_id=message.from_user.id)
+    count_purchases = await GoldHistory.get_sum_user_purchase(session_maker=session_maker,
+                                                              telegram_id=message.from_user.id)
     user = User(telegram_id=user_id)
     count_refs = await User.count_referrals(session_maker=session_maker, user=user)
 
@@ -180,46 +182,33 @@ async def delete_worker(message: types.Message):
 
 async def add_support(message: types.Message):
     session_maker = message.bot['db']
+    dp: Dispatcher = message.bot['dp']
     text = message.text.split(' ')
     await User.set_role(user_id=int(text[1]), role='support', session_maker=session_maker)
     await Support.add_support(user_id=int(text[1]), password=text[2], session_maker=session_maker)
     await message.answer('Работник добавлен!')
-    await message.bot.send_message(chat_id=int(text[1]), text='Вас назначили работником тех поддержки')
+    user_state = dp.current_state(chat=int(text[1]), user=int(text[1]))
+    await user_state.finish()
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас назначили работником тех поддержки',
+                                   reply_markup=main_menu.keyboard)
 
 
 async def delete_support(message: types.Message):
     session_maker = message.bot['db']
+    dp: Dispatcher = message.bot['dp']
     text = message.text.split(' ')
     await User.set_role(user_id=int(text[1]), role='user', session_maker=session_maker)
     await Support.delete_support(user_id=int(text[1]), session_maker=session_maker)
     await message.answer('Работник тех. поддержки удален!')
-    await message.bot.send_message(chat_id=int(text[1]), text='Вас сняли с должности работника тех. поддержки')
+    user_state = dp.current_state(chat=int(text[1]), user=int(text[1]))
+    await user_state.finish()
+    await message.bot.send_message(chat_id=int(text[1]), text='Вас сняли с должности работника тех. поддержки',
+                                   reply_markup=main_menu.keyboard)
 
 
-async def job(message: types.Message, state: FSMContext):
-    session_maker = message.bot['db']
-    text = message.text.split(' ')
-    admins = [admin[0] for admin in await User.get_admins(session_maker)]
-    if text[1] == 'off':
-        await Worker.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
-        await Support.set_active(user_id=message.from_user.id, active=False, session_maker=session_maker)
-        await message.answer('Вы закончили работу', reply_markup=main_menu.keyboard)
-        await state.finish()
-    else:
-        keyboard = None
-        if await Worker.auth_worker(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
-            await Worker.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
-            await state.set_state('worker_in_job')
-            keyboard = worker_keyboard
-        if await Support.auth_support(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
-            await Support.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
-            await state.set_state('support_in_job')
-            keyboard = support_keyboard
-        if message.from_user.id in admins:
-            await state.set_state('admin_in_job')
-            keyboard = worker_keyboard
-
-        await message.answer('Успешная авторизация', reply_markup=keyboard)
+async def admin_menu(message: types.Message, state: FSMContext):
+    await message.answer('Меню администратора', reply_markup=admin_keyboard)
+    await state.set_state('admin_in_job')
 
 
 async def output(message: types.Message):
@@ -232,7 +221,7 @@ async def output(message: types.Message):
     if first_free_ticket is None:
         await message.answer('Нет активных запросов')
         return
-    first_free_ticket_split = str((first_free_ticket[0]).split(':'))
+    first_free_ticket_split = str(first_free_ticket[0]).split(':')
     id = int(first_free_ticket_split[0])
     user = int(first_free_ticket_split[1])
     gold = float(first_free_ticket_split[2])
@@ -279,6 +268,11 @@ async def finish(message: types.Message):
                                        text=f'{message.from_user.id} завершил запрос пользователя {user}')
     await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
     await message.bot.send_message(chat_id=user, text='🎉 Запрос на вывод золота, успешно завершён!')
+    referrer = await Referral.get_referrer(telegram_id=user, session_maker=session_maker)
+    if referrer:
+        await message.bot.send_message(chat_id=referrer, text='Вы получили 5G за реферала')
+        await User.add_currency(telegram_id=referrer, currency_type='gold', value=5, session_maker=session_maker)
+        await GoldHistory.add_gold_purchase(telegram_id=referrer, gold=5, session_maker=session_maker)
     await message.answer('Проверка закончена!\n'
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
@@ -499,6 +493,7 @@ async def support_stats(message: types.Message):
                          f"Ответил на {done} тикетов\n"
                          f"Отклонил {canceled} тикетов")
 
+
 async def take(message: types.Message):
     session_maker = message.bot['db']
     ticket = await Tickets.get_available_ticket(session_maker=session_maker)
@@ -557,7 +552,7 @@ async def report_ticket(call: types.CallbackQuery, callback_data: dict):
         await call.bot.send_message(int(user_id), 'Сотрудник поддержки выдал вам предупреждение!')
     if action == 'no':
         await call.message.edit_text('Жалоба отклонена, напишите /take еще раз')
-        await Tickets.update_support_id(ticket_id=int(ticket_id), support_id=None, session_maker=session_maker)
+        await Tickets.update_support_id(ticket_id=int(ticket_id), support_id=0, session_maker=session_maker)
 
 
 def register_admin_handlers(dp: Dispatcher):
@@ -583,32 +578,24 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(delete_product, Command(['dprod']), is_admin=True)
     dp.register_message_handler(add_product, Command(['addproduct']), is_admin=True)
     dp.register_message_handler(support_stats, Command(['rep']), is_admin=True)
-    dp.register_message_handler(add_product, Command(['ref']), is_admin=True)
+    # dp.register_message_handler(add_product, Command(['ref']), is_admin=True)
     dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)
     dp.register_message_handler(add_product_description, state=AddProduct.description, is_admin=True)
     dp.register_message_handler(add_product_price, state=AddProduct.price, is_admin=True)
     dp.register_message_handler(add_product_photo, state=AddProduct.photo, content_types=['photo'], is_admin=True)
 
-    dp.register_message_handler(job, Command(['job']), state=['admin_in_job', None], is_admin=True)
+    dp.register_message_handler(admin_menu, Command(['admin']), is_admin=True)
     dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(take, Command(['take']), state='admin_in_job', is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
 
-    dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_support=True)
-
-    dp.register_message_handler(output, Command(['output']), state='worker_in_job', is_worker=True)
-    dp.register_message_handler(finish, Command(['finish']), state='worker_in_job', is_worker=True)
-    dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='worker_in_job',
-                                       is_worker=True)
     dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='admin_in_job',
                                        is_admin=True)
 
-    dp.register_message_handler(job, Command(['job']), state=['support_in_job', None], is_support=True)
-    dp.register_message_handler(job, Command(['job']), state=['worker_in_job', None], is_worker=True)
-
     dp.register_message_handler(take, Command(['take']), state=['support_in_job', None], is_support=True)
+
     dp.register_callback_query_handler(take_action, take_ticket_callback.filter(), state=['support_in_job', None],
                                        is_support=True)
     dp.register_callback_query_handler(report_ticket, report_ticket_callback.filter(), state=['support_in_job', None],

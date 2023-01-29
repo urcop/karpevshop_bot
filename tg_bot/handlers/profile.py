@@ -20,7 +20,7 @@ async def get_profile(message: types.Message):
     user = User(telegram_id=message.from_user.id)
     user_balance = await user.get_balance(session_maker, message.from_user.id)
     user_gold = await user.get_gold(session_maker, message.from_user.id)
-    count_purchases = await GoldHistory.get_count_user_purchase(session_maker=session_maker,
+    sum_purchases = await GoldHistory.get_sum_user_purchase(session_maker=session_maker,
                                                                 telegram_id=message.from_user.id)
     text = [
         f'🔑 ID: {message.from_user.id}',
@@ -28,7 +28,7 @@ async def get_profile(message: types.Message):
         f'💸 Баланс: {user_balance} руб.',
         f'💰 Золото: {user_gold}',
         '⏰ Запросов на вывод золота: 0',
-        f'💵 Куплено золота: {count_purchases} за все время'
+        f'💵 Куплено золота: {sum_purchases} за все время'
     ]
     await message.answer('\n'.join(text), reply_markup=profile.keyboard)
 
@@ -72,19 +72,22 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
                     await User.add_currency(session_maker=session_maker, telegram_id=message.from_user.id,
                                             currency_type=promo_type, value=promo_value)
                     if promo_type == 'balance':
+                        promo_type_text = 'рублей'
                         await BalanceHistory.add_balance_purchase(session_maker=session_maker,
                                                                   telegram_id=message.from_user.id,
                                                                   money=promo_value)
                     elif promo_type == 'gold':
+                        promo_type_text = 'золота'
                         await GoldHistory.add_gold_purchase(session_maker=session_maker,
                                                             telegram_id=message.from_user.id,
                                                             gold=promo_value)
+
                     logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
                     await Promocode.decrement(promo_name, session_maker)
                     await User2Promo.add_user_promo(user_id=message.from_user.id, promo_id=promo_id,
                                                     session_maker=session_maker)
                     await state.finish()
-                    await message.answer('Промокод успешно применен', reply_markup=main_menu.keyboard)
+                    await message.answer(f'Промокод успешно применен. Вы получили {promo_value} {promo_type_text}', reply_markup=main_menu.keyboard)
                 else:
                     await message.answer('Вы уже активировали этот промокод')
             else:

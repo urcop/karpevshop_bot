@@ -20,6 +20,7 @@ from tg_bot.handlers.profile import register_profile
 from tg_bot.handlers.reviews import register_reviews
 from tg_bot.handlers.start import register_start
 from tg_bot.handlers.support import register_support
+from tg_bot.handlers.support_worker import register_support_worker_commands
 from tg_bot.middlewares.db import DbMiddleware
 from tg_bot.middlewares.support_middleware import SupportMiddleware
 from tg_bot.services.cron import top_month, top_week, start_new_season
@@ -50,6 +51,7 @@ def register_all_handlers(dp):
     register_games(dp)
     register_admin_handlers(dp)
     register_other_items(dp)
+    register_support_worker_commands(dp)
 
 
 async def main():

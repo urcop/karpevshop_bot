@@ -8,10 +8,13 @@ from tg_bot.models.users import Referral
 
 async def start(message: types.Message):
     params = message.text.split(' ')
+    if int(params[1]) == message.from_user.id:
+        return
     if len(params) == 2:
         session_maker = message.bot['db']
         await Referral.add_user(db_session=session_maker,
                                 telegram_id=message.from_user.id, referrer=int(params[1]))
+        await message.bot.send_message(int(params[1]), f'{message.from_user.id} зарегистрировался по вашей ссылке')
     text = [
         'Спасибо что выбрали нас!',
         'Выберите в меню, что хотите сделать.',

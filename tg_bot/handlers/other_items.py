@@ -30,11 +30,11 @@ async def other_item(call: types.CallbackQuery, callback_data: dict):
     price = int(callback_data['price'])
     photo_path = config.misc.base_dir / 'uploads' / 'aprods' / callback_data['photo']
     photo = InputFile(photo_path)
-    text = {
+    text = [
         f'<b>Название</b>: {name}',
         f'<b>Описание</b>: {description}',
         f'<b>Цена</b>: {price}',
-    }
+    ]
     await call.message.delete()
     await call.message.answer_photo(photo=photo, caption='\n'.join(text),
                                     reply_markup=await buy_other_item_keyboard(name, price))
@@ -44,8 +44,8 @@ async def other_item_buy(call: types.CallbackQuery, callback_data: dict):
     session_maker = call.bot['db']
     price = int(callback_data.get('price'))
     name = callback_data.get('name')
-    user_balance = await User.get_balance(session_maker, call.from_user.id)
-    if price <= user_balance:
+    if await User.is_enough(telegram_id=call.from_user.id, currency_type='balance',
+                      count=price, session_maker=session_maker):
         admins = [admin[0] for admin in await User.get_admins(session_maker)]
         await User.take_currency(session_maker, call.from_user.id,
                                  currency_type='balance', value=price)
@@ -60,7 +60,8 @@ async def other_item_buy(call: types.CallbackQuery, callback_data: dict):
                                              f'Товар: {name}')
 
     else:
-        await call.message.edit_text('У вас недостаточно средств', reply_markup=main_menu.keyboard)
+        await call.message.delete()
+        await call.message.answer('У вас недостаточно средств')
 
 
 async def other_item_cancel(call: types.CallbackQuery):

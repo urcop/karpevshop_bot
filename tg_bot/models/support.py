@@ -11,7 +11,7 @@ class Tickets(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger)
     message = Column(String)
-    support_id = Column(BigInteger, default=None)
+    support_id = Column(BigInteger, default=0)
     status = Column(Integer, default=0)
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
     date_done = Column(String, default=None)
@@ -45,7 +45,7 @@ class Tickets(Base):
     @classmethod
     async def get_available_ticket(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls).where(and_(cls.status == 0, cls.support_id == None))
+            sql = select(cls).where(and_(cls.status == 0, cls.support_id == 0))
             result = await db_session.execute(sql)
             return result.first()
 
@@ -81,7 +81,7 @@ class Tickets(Base):
     @classmethod
     async def get_queue_tickets(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(func.count(cls.id)).where(and_(cls.status == 0, cls.support_id == None))
+            sql = select(func.count(cls.id)).where(and_(cls.status == 0, cls.support_id == 0))
             result = await db_session.execute(sql)
             return result.scalar()
 
