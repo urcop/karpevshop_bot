@@ -310,9 +310,9 @@ async def ticket_stats(message: types.Message):
     params = message.text.split(' ')
     date = params[1]
 
-    games = TicketGames.get_count_games_period(date=date, session_maker=session_maker)
-    sum_bets = TicketGames.get_sum_bets_period(date=date, session_maker=session_maker)
-    win = TicketGames.get_sum_win_period(date=date, session_maker=session_maker)
+    games = await TicketGames.get_count_games_period(date=date, session_maker=session_maker)
+    sum_bets = await TicketGames.get_sum_bets_period(date=date, session_maker=session_maker)
+    win = await TicketGames.get_sum_win_period(date=date, session_maker=session_maker)
 
     text = [
         f'Статистика лотереи за {"все время" if date == "all" else date}',
