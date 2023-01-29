@@ -154,10 +154,9 @@ if __name__ == '__main__':
     async def main():
         config = load_config()
         session = await create_db_session(config)
-        top_user = await GoldHistory.get_gold_user_period(session_maker=session,
-                                                          start_time=1673373204,
-                                                          end_time=1674029142,
-                                                          user_id=383212537)
+        top_user = await GoldHistory.get_history_period(session_maker=session,
+                                                        start_time=1675026000,
+                                                        end_time=1675717199)
 
         print(top_user)
 

@@ -106,12 +106,16 @@ async def top_week(call: types.CallbackQuery):
     today_weekday = datetime.datetime.weekday(today)
     monday = (today - datetime.timedelta(today_weekday)).replace(hour=0, minute=0, second=0)
     monday_unix = int(monday.timestamp())
-    sunday = (monday + datetime.timedelta(6)).replace(hour=23, minute=59, second=59)
+    sunday = (monday + datetime.timedelta(7)).replace(hour=23, minute=59, second=59)
     sunday_unix = int(sunday.timestamp())
 
     top_week_users = await GoldHistory.get_history_period(session_maker=session_maker,
                                                           start_time=monday_unix,
                                                           end_time=sunday_unix)
+    logging.info(today)
+    logging.info(monday)
+    logging.info(sunday)
+    logging.info(top_week_users)
 
     text: list = await generate_text_top(top_users=top_week_users, period='week')
     await call.message.edit_text('\n'.join(text))
