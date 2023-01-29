@@ -6,6 +6,8 @@ admin_keyboard = ReplyKeyboardMarkup(
         [
             KeyboardButton('/output'),
             KeyboardButton('/finish'),
+        ],
+        [
             KeyboardButton(text='⬅️Назад')
         ]
     ]
