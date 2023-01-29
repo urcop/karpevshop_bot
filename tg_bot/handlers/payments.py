@@ -20,7 +20,7 @@ async def get_amount(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         try:
             data['amount'] = int(message.text)
-            min_payment = message.bot['config'].misc.min_payment_value
+            min_payment = message.bot['config'].qiwi.min_payment_qiwi
             if data['amount'] >= min_payment:
                 await message.answer(f'Вы хотитите пополнить баланс на {data["amount"]} руб.\n'
                                      f'Выберите способ оплаты:', reply_markup=payment.choice_keyboard)
