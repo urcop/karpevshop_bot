@@ -14,6 +14,7 @@ from tg_bot.keyboards.reply.gold_menu import gold_menu_keyboard
 from tg_bot.misc.tower_game import tower_game_session, calculate_tower_win
 from tg_bot.models.history import GoldHistory
 from tg_bot.models.lottery import LotteryTickets, TicketGames
+from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User
 from tg_bot.states.tower_game_state import TowerState
 
@@ -68,6 +69,7 @@ async def tower_bet(message: types.Message, state: FSMContext):
 
 
 async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
+    session_maker = call.bot['db']
     current_step = int(callback_data.get('current_step'))
     config = call.bot['config']
     async with state.proxy() as data:
@@ -81,11 +83,15 @@ async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data
                     reply_markup=tower_game_keyboard(current_bet=win,
                                                      current_step=current_step + 1))
             else:
+                await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=0,
+                                          session_maker=session_maker)
                 await state.finish()
                 await call.message.delete()
                 await call.message.answer('Упс, вам не повезло ☹️', reply_markup=gold_menu_keyboard)
         else:
             win = await calculate_tower_win(int(data['current_bet']), current_step + 1)
+            await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=win,
+                                      session_maker=session_maker)
             await call.message.delete()
             await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
             await state.finish()
