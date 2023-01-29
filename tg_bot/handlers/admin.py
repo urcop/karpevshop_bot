@@ -522,7 +522,6 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(admin_menu, Command(['admin']), is_admin=True)
     dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)
-    dp.register_message_handler(take, Command(['take']), state='admin_in_job', is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
 
