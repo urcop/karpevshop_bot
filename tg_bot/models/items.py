@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, String, insert, select, and_, BigInteger, update, delete, Float
+from sqlalchemy import Column, Integer, String, insert, select, and_, BigInteger, update, delete, Float, func
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -81,6 +81,13 @@ class OutputQueue(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_user_requests(cls, user_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.count(cls.id)).where(and_(cls.user_id == user_id, cls.worker == 0))
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     @classmethod
     async def get_all_queue(cls, session_maker: sessionmaker):
