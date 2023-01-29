@@ -8,9 +8,9 @@ from tg_bot.models.users import Referral
 
 async def start(message: types.Message):
     params = message.text.split(' ')
-    if int(params[1]) == message.from_user.id:
-        return
     if len(params) == 2:
+        if int(params[1]) == message.from_user.id:
+            return
         session_maker = message.bot['db']
         await Referral.add_user(db_session=session_maker,
                                 telegram_id=message.from_user.id, referrer=int(params[1]))
