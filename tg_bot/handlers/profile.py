@@ -30,7 +30,7 @@ async def get_profile(message: types.Message):
         f'💸 Баланс: {user_balance} руб.',
         f'💰 Золото: {user_gold}',
         f'⏰ Запросов на вывод золота: {count_outputs}',
-        f'💵 Куплено золота: {sum_purchases} за все время'
+        f'💵 Куплено золота: {sum_purchases if sum_purchases else 0} за все время'
     ]
     await message.answer('\n'.join(text), reply_markup=profile.keyboard)
 
