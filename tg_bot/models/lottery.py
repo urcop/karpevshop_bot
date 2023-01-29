@@ -75,3 +75,33 @@ class TicketGames(Base):
             sql = select(func.count(cls.user_id)).where(and_(cls.ticket_id == ticket_id, cls.user_id == user_id))
             result = await db_session.execute(sql)
             return result.scalar()
+
+    @classmethod
+    async def get_count_games_period(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.count(cls.id))
+            else:
+                sql = select(func.count(cls.id)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def get_sum_win_period(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.win))
+            else:
+                sql = select(func.sum(cls.win)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
+    async def get_sum_bets_period(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.sum(cls.bet))
+            else:
+                sql = select(func.sum(cls.bet)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()

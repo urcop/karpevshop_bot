@@ -10,6 +10,7 @@ from tg_bot.keyboards.reply.admin import admin_keyboard
 from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
+from tg_bot.models.lottery import TicketGames
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.support import Tickets
@@ -304,6 +305,23 @@ async def worker_stats(message: types.Message):
     await message.answer('\n'.join(text))
 
 
+async def ticket_stats(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    date = params[1]
+
+    games = TicketGames.get_count_games_period(date=date, session_maker=session_maker)
+    sum_bets = TicketGames.get_sum_bets_period(date=date, session_maker=session_maker)
+    win = TicketGames.get_sum_win_period(date=date, session_maker=session_maker)
+
+    text = [
+        f'Статистика лотереи за {"все время" if date == "all" else date}',
+        f'Количество игр: {games}',
+        f'Сумма: {sum_bets}',
+        f'Выигрыш: {win}',
+    ]
+    await message.answer('\n'.join(text))
+
 async def add_case(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
@@ -502,6 +520,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(stat, Command(['stat']), is_admin=True)
     dp.register_message_handler(cinfo, Command(['cinfo']), is_admin=True)
     dp.register_message_handler(worker_stats, Command(['ijob']), is_admin=True)
+    dp.register_message_handler(ticket_stats, Command(['ticket']), is_admin=True)
     dp.register_message_handler(add_case, Command(['addcase']), is_admin=True)
     dp.register_message_handler(delete_case, Command(['dcase']), is_admin=True)
     dp.register_message_handler(add_case_item, Command(['addcaseitem']), is_admin=True)
