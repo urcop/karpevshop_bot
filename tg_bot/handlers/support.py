@@ -75,11 +75,8 @@ async def support_message(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
     await Tickets.add_ticket(user_id=message.from_user.id, message=message.text, session_maker=session_maker)
     await message.answer('Ожидайте, вам ответят в ближайшее время')
-    admins = [admin[0] for admin in await User.get_admins(session_maker=session_maker)]
     active_supports = [support[0] for support in await Support.get_active(session_maker=session_maker)]
-    active_supports_and_admins = admins + active_supports
-    list(set(active_supports_and_admins))
-    for user in active_supports_and_admins:
+    for user in active_supports:
         await message.bot.send_message(user, 'Добавлен новый тикет')
     await state.finish()
 
