@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
@@ -21,22 +23,23 @@ async def job(message: types.Message, state: FSMContext):
         await message.answer('Вы закончили работу', reply_markup=main_menu.keyboard)
         await state.finish()
     else:
-        if await Worker.auth_worker(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
+        auth_worker = await Worker.auth_worker(user_id=message.from_user.id, password=text[1],
+                                               session_maker=session_maker)
+        support_auth = await Support.auth_support(user_id=message.from_user.id, password=text[1],
+                                                  session_maker=session_maker)
+        if auth_worker:
             await Worker.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
             await state.set_state('worker_in_job')
             await message.answer('Успешная авторизация', reply_markup=worker_keyboard)
             return
-        elif not await Worker.auth_worker(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
-            await message.answer('Неверный пароль')
-            return
 
-        elif await Support.auth_support(user_id=message.from_user.id, password=text[1], session_maker=session_maker):
+        elif support_auth:
             await Support.set_active(user_id=message.from_user.id, active=True, session_maker=session_maker)
             await state.set_state('support_in_job')
             await message.answer('Успешная авторизация', reply_markup=support_keyboard)
             return
-        elif not await Support.auth_support(user_id=message.from_user.id, password=text[1],
-                                            session_maker=session_maker):
+
+        elif not (support_auth and worker_keyboard):
             await message.answer('Неверный пароль')
             return
 
