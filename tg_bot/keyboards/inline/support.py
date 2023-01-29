@@ -6,6 +6,8 @@ support_menu_callback = CallbackData('support_menu', 'action')
 
 take_ticket_callback = CallbackData('take_ticket', 'action', 'user_id', 'ticket_id')
 
+report_ticket_callback = CallbackData('report_ticket', 'action', 'user_id', 'ticket_id')
+
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -50,6 +52,18 @@ async def take_ticket_keyboard(ticket_id, user_id):
             [
                 InlineKeyboardButton(text='Жалоба',
                                      callback_data=take_ticket_callback.new('warn_dialog', user_id, ticket_id))
+            ]
+        ]
+    )
+    return keyboard
+
+
+def report_ticket_confirm(ticket_id, user_id):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Да', callback_data=report_ticket_callback.new('yes', user_id, ticket_id)),
+                InlineKeyboardButton(text='Нет', callback_data=report_ticket_callback.new('no', user_id, ticket_id))
             ]
         ]
     )

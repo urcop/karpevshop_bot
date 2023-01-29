@@ -5,16 +5,17 @@ from aiogram.types import InputFile
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.keyboards.inline.output_items import returns_output_button, returns_output_callback
-from tg_bot.keyboards.inline.support import take_ticket_keyboard, take_ticket_callback
+from tg_bot.keyboards.inline.support import take_ticket_keyboard, take_ticket_callback, report_ticket_confirm, \
+    report_ticket_callback
 from tg_bot.keyboards.reply import main_menu, back_to_main
-from tg_bot.keyboards.reply.support import support_keyboard
+from tg_bot.keyboards.reply.support import support_keyboard, user_support_keyboard
 from tg_bot.keyboards.reply.worker import worker_keyboard
 from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
-from tg_bot.models.support import Tickets
+from tg_bot.models.support import Tickets, SupportBan
 from tg_bot.models.users import User
 from tg_bot.models.workers import Worker, Support, WorkerHistory
 from tg_bot.services.broadcast import broadcast
@@ -485,11 +486,27 @@ async def add_product_photo(message: types.Message, state: FSMContext):
         await state.finish()
 
 
+async def support_stats(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    support_id = int(params[1])
+    date = params[2]
+
+    done = await Tickets.get_done_support_tickets(support_id=support_id, date=date, session_maker=session_maker)
+    canceled = await Tickets.get_cancel_support_tickets(support_id=support_id, date=date, session_maker=session_maker)
+
+    await message.answer(f"За {date} работник {support_id}\n"
+                         f"Ответил на {done} тикетов\n"
+                         f"Отклонил {canceled} тикетов")
+
 async def take(message: types.Message):
     session_maker = message.bot['db']
     ticket = await Tickets.get_available_ticket(session_maker=session_maker)
     if not ticket:
         await message.answer('Нет активных тикетов')
+        return
+    if await Tickets.support_in_dialog(support_id=message.from_user.id, session_maker=session_maker):
+        await message.answer('Завершите предыдущий тикет')
         return
     ticket_info = str(ticket[0]).split(':')
     await Tickets.update_support_id(int(ticket_info[0]), support_id=message.from_user.id, session_maker=session_maker)
@@ -514,7 +531,8 @@ async def take_action(call: types.CallbackQuery, callback_data: dict, state: FSM
     if action == 'start_dialog':
         await call.message.edit_text('Вы начали диалог с пользователем')
         support_id = await Support.get_support_id(user_id=call.from_user.id, session_maker=session_maker)
-        await call.bot.send_message(user_id, f'Агент тех поддержки №{support_id} начал диалог')
+        await call.bot.send_message(user_id, f'Агент тех поддержки №{support_id} начал диалог',
+                                    reply_markup=user_support_keyboard)
         await Tickets.update_status(ticket_id=ticket_id, status=1, session_maker=session_maker)
         await state.set_state('in_support')
         dp: Dispatcher = call.bot['dp']
@@ -522,10 +540,24 @@ async def take_action(call: types.CallbackQuery, callback_data: dict, state: FSM
         await user_state.set_state('in_support')
         await user_state.update_data(second_id=call.from_user.id)
         await state.update_data(second_id=user_id)
+    if action == 'warn_dialog':
+        await call.message.edit_text('Вы хотите выдать предупреждение?',
+                                     reply_markup=report_ticket_confirm(ticket_id, user_id))
 
 
-async def stopdialog(message: types.Message):
-    ...
+async def report_ticket(call: types.CallbackQuery, callback_data: dict):
+    session_maker = call.bot['db']
+    action = callback_data.get('action')
+    user_id = callback_data.get('user_id')
+    ticket_id = callback_data.get('ticket_id')
+    if action == 'yes':
+        await SupportBan.add_ban(user_id=int(user_id), session_maker=session_maker)
+        await Tickets.update_status(ticket_id=int(ticket_id), status=-2, session_maker=session_maker)
+        await call.message.edit_text('Жалоба отправлена, тикет отклонен')
+        await call.bot.send_message(int(user_id), 'Сотрудник поддержки выдал вам предупреждение!')
+    if action == 'no':
+        await call.message.edit_text('Жалоба отклонена, напишите /take еще раз')
+        await Tickets.update_support_id(ticket_id=int(ticket_id), support_id=None, session_maker=session_maker)
 
 
 def register_admin_handlers(dp: Dispatcher):
@@ -550,6 +582,8 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(add_item_name, state='add_item_name', is_admin=True)
     dp.register_message_handler(delete_product, Command(['dprod']), is_admin=True)
     dp.register_message_handler(add_product, Command(['addproduct']), is_admin=True)
+    dp.register_message_handler(support_stats, Command(['rep']), is_admin=True)
+    dp.register_message_handler(add_product, Command(['ref']), is_admin=True)
     dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)
     dp.register_message_handler(add_product_description, state=AddProduct.description, is_admin=True)
     dp.register_message_handler(add_product_price, state=AddProduct.price, is_admin=True)
@@ -559,7 +593,6 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(output, Command(['output']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(finish, Command(['finish']), state='admin_in_job', is_admin=True)
     dp.register_message_handler(take, Command(['take']), state='admin_in_job', is_admin=True)
-    dp.register_message_handler(stopdialog, Command(['stopdialog']), state='admin_in_job', is_admin=True)
 
     dp.register_message_handler(tell, text_startswith='/tell', content_types=['text', 'photo'], is_admin=True)
 
@@ -578,4 +611,5 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(take, Command(['take']), state=['support_in_job', None], is_support=True)
     dp.register_callback_query_handler(take_action, take_ticket_callback.filter(), state=['support_in_job', None],
                                        is_support=True)
-    dp.register_message_handler(stopdialog, Command(['stopdialog']), state=['support_in_job', None], is_support=True)
+    dp.register_callback_query_handler(report_ticket, report_ticket_callback.filter(), state=['support_in_job', None],
+                                       is_support=True)

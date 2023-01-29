@@ -9,3 +9,12 @@ support_keyboard = ReplyKeyboardMarkup(
         ]
     ]
 )
+
+user_support_keyboard = ReplyKeyboardMarkup(
+    resize_keyboard=True,
+    keyboard=[
+        [
+            KeyboardButton('/stopdialog')
+        ]
+    ]
+)

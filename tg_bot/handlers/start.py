@@ -3,12 +3,18 @@ from aiogram.dispatcher.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
 
 from tg_bot.keyboards.reply import main_menu
+from tg_bot.models.users import Referral
 
 
 async def start(message: types.Message):
+    params = message.text.split(' ')
+    if len(params) == 2:
+        session_maker = message.bot['db']
+        await Referral.add_user(db_session=session_maker,
+                                telegram_id=message.from_user.id, referrer=int(params[1]))
     text = [
         'Спасибо что выбрали нас!',
-        'Выберите в меню, что хотите сделать.'
+        'Выберите в меню, что хотите сделать.',
     ]
     await message.answer('\n'.join(text), reply_markup=main_menu.keyboard)
 

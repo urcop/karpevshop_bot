@@ -38,9 +38,10 @@ async def referral_system(call: types.CallbackQuery):
     session_maker = call.bot['db']
     user = User(telegram_id=call.from_user.id)
     count_refs = await user.count_referrals(session_maker, user)
+    config = call.bot['config']
     text = [
         '❤️ За каждую покупку реферала вы получаете 5 золота',
-        f'🔥 Ваша ссылка: https://t.me/karpevshop_bot?start={call.from_user.id}',
+        f'🔥 Ваша ссылка: https://t.me/{config.misc.bot_link}?start={call.from_user.id}',
         f'👥 Количество приглашенных пользователей: {count_refs if count_refs else 0}'
     ]
 

@@ -1,10 +1,10 @@
-import logging
+import datetime
 
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
 from tg_bot.keyboards.inline import support
-from tg_bot.models.support import Tickets
+from tg_bot.models.support import Tickets, SupportBan
 from tg_bot.models.users import User
 from tg_bot.models.workers import Support
 
@@ -45,11 +45,28 @@ async def answer_action(call: types.CallbackQuery, state: FSMContext, callback_d
     session_maker = call.bot['db']
     action = callback_data.get('action')
     if action == 'contact':
+        if await SupportBan.get_user(user_id=call.from_user.id, session_maker=session_maker):
+            if await SupportBan.get_user_bans(user_id=call.from_user.id, session_maker=session_maker) != 4:
+                now = datetime.datetime.now().timestamp()
+                ban_time = await SupportBan.get_user_bantime(user_id=call.from_user.id, session_maker=session_maker)
+                if ban_time > now:
+                    remaining_time = str(datetime.timedelta(seconds=int(ban_time) - int(now)))
+                    remaining_time = remaining_time.replace("days", "дней")
+                    remaining_time = remaining_time.replace("day", "день")
+
+                    await call.message.edit_text('Вы временно заблокированы в поддержке\n'
+                                                 f'Оставшееся время: {remaining_time}')
+                    return
+            else:
+                await call.message.edit_text('Вы навсегда заблокированы в поддержке')
+                return
+
         if await Tickets.is_active(user_id=call.from_user.id, session_maker=session_maker):
             await call.message.edit_text('Напишите пожалуйста свой вопрос')
             await state.set_state('support_message')
         else:
             await call.message.edit_text('У вас уже есть активный запрос в поддержку')
+
     elif action == 'back':
         await call.message.edit_text(support_text(), reply_markup=support.keyboard)
 

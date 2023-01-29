@@ -44,6 +44,7 @@ class Misc:
     gold_rate: float
     tower_chance: float
     base_dir: Path
+    bot_link: str
 
 
 @dataclass
@@ -90,6 +91,7 @@ def load_config(path: str = None):
             phone=env.str("QIWI_WALLET"),
             gold_rate=env.float("GOLD_RATE"),
             tower_chance=env.float("TOWER_CHANCE"),
-            base_dir=Path(__file__).resolve().parent.parent
+            base_dir=Path(__file__).resolve().parent.parent,
+            bot_link=env.str("BOT_LINK")
         )
     )
