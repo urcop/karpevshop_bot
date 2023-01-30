@@ -189,7 +189,7 @@ async def get_jackpot_bet(message: types.Message, state: FSMContext):
 
 async def jackpot_game(bot, session_maker, room_id):
     logging.info('Jackpot game started')
-    await asyncio.sleep(20)
+    await asyncio.sleep(600)
     logging.info('Jackpot game finishing')
     users = await JackpotBets.get_users(room_id=room_id, session_maker=session_maker)
     if len(users) == 1:
