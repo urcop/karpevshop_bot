@@ -1,12 +1,11 @@
-import logging
-
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
 
 from tg_bot.handlers.admin import returns_output, output, finish, tell
 from tg_bot.keyboards.inline.output_items import returns_output_callback
-from tg_bot.keyboards.inline.support import take_ticket_callback, report_ticket_callback, take_ticket_keyboard
+from tg_bot.keyboards.inline.support import take_ticket_callback, report_ticket_callback, take_ticket_keyboard, \
+    report_ticket_confirm
 from tg_bot.keyboards.reply import main_menu
 from tg_bot.keyboards.reply.support import support_keyboard, user_support_keyboard
 from tg_bot.keyboards.reply.worker import worker_keyboard

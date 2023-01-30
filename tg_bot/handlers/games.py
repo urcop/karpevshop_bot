@@ -1,10 +1,14 @@
+import asyncio
+import datetime
 import logging
+import random
 from random import randint
 
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
 from tg_bot.keyboards.inline.games import games_keyboard, choice_game_callback, game_keyboard, accept_game_callback
+from tg_bot.keyboards.inline.jackpot import jackpot_keyboard, jackpot_callback
 from tg_bot.keyboards.inline.lotterytickets import action_ticket_callback
 from tg_bot.keyboards.inline.lotterytickets import generate_lottery_tickets_keyboard, lottery_ticket_callback, \
     buy_ticket_keyboard
@@ -13,10 +17,23 @@ from tg_bot.keyboards.reply.back_to_gold_menu import back_to_gold_keyboard
 from tg_bot.keyboards.reply.gold_menu import gold_menu_keyboard
 from tg_bot.misc.tower_game import tower_game_session, calculate_tower_win
 from tg_bot.models.history import GoldHistory
+from tg_bot.models.jackpot import JackpotGame, JackpotBets
 from tg_bot.models.lottery import LotteryTickets, TicketGames
 from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User
 from tg_bot.states.tower_game_state import TowerState
+
+
+async def generate_jackpot_text(room, session_maker):
+    users = await JackpotBets.get_users(room_id=room, session_maker=session_maker)
+    time_now = datetime.datetime.fromtimestamp(int(datetime.datetime.now().timestamp()))
+    end_time = await JackpotGame.get_end_time(room_id=room, session_maker=session_maker)
+    remaining_time = datetime.datetime.fromtimestamp(end_time) - time_now
+    all_bets = await JackpotBets.get_sum_bets(room_id=room, session_maker=session_maker)
+    chances = [int(user[1] / all_bets * 100) for user in users]
+    users_text = [f'{index + 1}: {user[0]} - {user[1]}: {chances[index]}%' for index, user in enumerate(users)]
+    text = [f'Банк {all_bets}', f'Время: {str(remaining_time)}\n', f'Пользователи:', '\n'.join(users_text)]
+    return text
 
 
 async def get_games(message: types.Message):
@@ -108,8 +125,98 @@ async def tower_game_end(call: types.CallbackQuery, state: FSMContext, callback_
     await state.finish()
 
 
-async def jackpot(call: types.CallbackQuery):
-    await call.answer('jackpot')
+async def jackpot(call: types.CallbackQuery, callback_data: dict, state: FSMContext):
+    session_maker = call.bot['db']
+    room = await JackpotGame.check_available_room(session_maker)
+    action = callback_data.get('action')
+    if not action:
+        if room:
+            text = await generate_jackpot_text(room, session_maker)
+            await call.message.edit_text('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+        else:
+            await call.message.edit_text('Банк 0G\n'
+                                         'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
+            return
+
+    if action == 'bet':
+        await call.message.delete()
+        await call.message.answer('Введите сумму ставки', reply_markup=back_to_gold_keyboard)
+        await state.set_state('jackpot_bet')
+    elif action == 'refresh':
+        if room:
+            text = await generate_jackpot_text(room, session_maker)
+            await call.message.delete()
+            await call.message.answer('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+        else:
+            await call.message.delete()
+            await call.message.answer('Банк 0G\n'
+                                      'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
+            return
+
+
+async def get_jackpot_bet(message: types.Message, state: FSMContext):
+    session_maker = message.bot['db']
+    async with state.proxy() as data:
+        try:
+            data['bet'] = int(message.text)
+        except ValueError:
+            await message.answer('Введите целое число')
+            return
+
+        if data['bet'] >= 10:
+            if await User.is_enough(session_maker, message.from_user.id, 'gold', data['bet']):
+                room = await JackpotGame.check_available_room(session_maker=session_maker)
+                if not room:
+                    await JackpotGame.create_room(session_maker=session_maker)
+                    room = await JackpotGame.check_available_room(session_maker=session_maker)
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(jackpot_game(message.bot, session_maker, room))
+                    await JackpotBets.add_bet(user_id=message.from_user.id, room_id=room, bet=data['bet'],
+                                              session_maker=session_maker)
+                else:
+                    await JackpotBets.add_bet(user_id=message.from_user.id, room_id=room, bet=data['bet'],
+                                              session_maker=session_maker)
+                await User.take_currency(session_maker, message.from_user.id, 'gold', data['bet'])
+                await message.answer('Ваша ставка принята', reply_markup=gold_menu_keyboard)
+                await state.finish()
+            else:
+                await message.answer('У вас недостаточно средств')
+                return
+        else:
+            await message.answer('Минимальная ставка 10 G')
+            return
+
+
+async def jackpot_game(bot, session_maker, room_id):
+    logging.info('Jackpot game started')
+    await asyncio.sleep(20)
+    logging.info('Jackpot game finishing')
+    users = await JackpotBets.get_users(room_id=room_id, session_maker=session_maker)
+    if len(users) == 1:
+        await JackpotGame.update_active_room(room_id, -1, session_maker)
+        await bot.send_message(users[0][0], text='Другие игроки не сделали ставки!\n'
+                                                 f'Вам возвращено: {users[0][1]}G')
+        await User.add_currency(session_maker, users[0][0], 'gold', users[0][1])
+        await JackpotGame.update_params_room(room_id, users[0][0], users[0][1], bot_jackpot=0,
+                                             session_maker=session_maker)
+    else:
+        bank = await JackpotBets.get_sum_bets(room_id, session_maker)
+        users_clear = [user[0] for user in users]
+        chances = [user[1] / bank for user in users]
+        winner = (random.choices(users_clear, weights=chances))[0]
+        await JackpotGame.update_active_room(room_id, 0, session_maker)
+        winner_winning = bank / 100 * 90
+        bot_win = bank / 100 * 10
+        await User.add_currency(session_maker, winner, 'gold', winner_winning)
+        await JackpotGame.update_params_room(room_id, winner, int(winner_winning), bot_jackpot=bot_win,
+                                             session_maker=session_maker)
+
+        await bot.send_message(chat_id=winner, text='Поздравляем!\n'
+                                                    f'Вы выиграли {int(winner_winning)}G в JackPot')
+        users_clear.remove(winner)
+        for user in users_clear:
+            lose = await JackpotBets.get_user_bet(room_id, user, session_maker)
+            await bot.send_message(user, f'Вы проиграли {lose}G в JackPot')
 
 
 async def lottery(call: types.CallbackQuery):
@@ -178,6 +285,8 @@ def register_games(dp: Dispatcher):
     dp.register_callback_query_handler(tower_game, tower_game_callback.filter(), state=TowerState.current_bet)
     dp.register_callback_query_handler(tower_game_end, tower_game_end_callback.filter(), state=TowerState.current_bet)
     dp.register_callback_query_handler(jackpot, accept_game_callback.filter(game_name='jackpot'))
+    dp.register_callback_query_handler(jackpot, jackpot_callback.filter())
+    dp.register_message_handler(get_jackpot_bet, state='jackpot_bet')
     dp.register_callback_query_handler(lottery, accept_game_callback.filter(game_name='lottery'))
     dp.register_callback_query_handler(lottery_ticket, lottery_ticket_callback.filter())
     dp.register_callback_query_handler(lottery_ticket_back, action_ticket_callback.filter(action='back'))
