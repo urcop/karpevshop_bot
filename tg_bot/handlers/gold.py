@@ -273,7 +273,7 @@ async def get_photo_output(message: types.Message, state: FSMContext):
                                  currency_type='gold', value=data['count'])
         await OutputQueue.add_to_queue(user_id=message.from_user.id, item_id=item_id, photo=file_name,
                                        user_nickname=user_nickname,
-                                       gold=data['price'], session_maker=session_maker)
+                                       gold=data['count'], session_maker=session_maker)
         admins_and_workers = await User.get_admins(session_maker) + await User.get_workers(session_maker)
         admins_and_workers = [user[0] for user in admins_and_workers]
         list(set(admins_and_workers))
