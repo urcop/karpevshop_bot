@@ -11,15 +11,15 @@ class JackpotGame(Base):
     id = Column(Integer, primary_key=True)
     winner_id = Column(BigInteger)
     jackpot = Column(Integer)
-    time_end = Column(Integer, default=(datetime.datetime.now() + datetime.timedelta(minutes=10)).timestamp())
+    time_end = Column(Integer)
     active = Column(Integer)
     bot_jackpot = Column(Integer)
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
-    async def create_room(cls, session_maker: sessionmaker):
+    async def create_room(cls, end_time: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(active=1)
+            sql = insert(cls).values(active=1, time_end=end_time)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

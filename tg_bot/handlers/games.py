@@ -167,7 +167,8 @@ async def get_jackpot_bet(message: types.Message, state: FSMContext):
             if await User.is_enough(session_maker, message.from_user.id, 'gold', data['bet']):
                 room = await JackpotGame.check_available_room(session_maker=session_maker)
                 if not room:
-                    await JackpotGame.create_room(session_maker=session_maker)
+                    unix_time = int(datetime.datetime.now().timestamp()) + 600
+                    await JackpotGame.create_room(session_maker=session_maker, end_time=unix_time)
                     room = await JackpotGame.check_available_room(session_maker=session_maker)
                     loop = asyncio.get_event_loop()
                     loop.create_task(jackpot_game(message.bot, session_maker, room))
