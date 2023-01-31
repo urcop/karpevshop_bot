@@ -28,11 +28,11 @@ services:
       - ./postgres_data/:/var/lib/postgresql/data/
     restart: always
   cache:
-    image: redis:6.2-alpine
+    image: redis:latest
     restart: always
     ports:
       - '${REDIS_PORT}:6379'
-    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD} --port ${REDIS_PORT}
+    command: redis-server --loglevel warning --requirepass ${REDIS_PASSWORD} --port ${REDIS_PORT}
 
 networks:
   bot:

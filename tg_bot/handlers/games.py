@@ -74,13 +74,17 @@ async def tower_bet(message: types.Message, state: FSMContext):
             data['current_bet'] = int(message.text)
         except ValueError:
             await message.answer('Введите целое число')
+            return
 
         if data['current_bet'] >= 10:
-            await message.answer(f'Ваша ставка {data["current_bet"]}\n'
-                                 f'Выберите кнопку',
-                                 reply_markup=tower_game_keyboard(current_bet=data['current_bet']))
-            await User.take_currency(session_maker=session_maker, telegram_id=message.from_user.id,
-                                     currency_type='gold', value=data["current_bet"])
+            if await User.is_enough(session_maker, message.from_user.id, 'gold', data['current_bet']):
+                await message.answer(f'Ваша ставка {data["current_bet"]}\n'
+                                     f'Выберите кнопку',
+                                     reply_markup=tower_game_keyboard(current_bet=data['current_bet']))
+                await User.take_currency(session_maker=session_maker, telegram_id=message.from_user.id,
+                                         currency_type='gold', value=data["current_bet"])
+            else:
+                await message.answer('У вас недостаточно золота')
         else:
             await message.answer('Минимальная ставка 10G')
 
