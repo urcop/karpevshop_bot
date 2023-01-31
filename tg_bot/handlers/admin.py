@@ -541,7 +541,7 @@ async def ref_stats(message: types.Message):
                       await GoldHistory.get_sum_user_purchase(session_maker, referral)]
 
     text = [
-        f'👥 Количество приглашенных пользователей: {count_refs}',
+        f'👥 Количество приглашенных пользователей: {count_refs if count_refs else 0}',
         f'Куплено золота рефералами: {sum(referrals_gold)}'
     ]
 
@@ -554,7 +554,9 @@ async def jackpot_stats(message: types.Message):
     date = params[1]
     ids = [id[0] for id in await JackpotGame.get_all_room_ids_period(date, session_maker)]
     all_bets = [await JackpotBets.get_sum_bets(id, session_maker) for id in ids]
-
+    if len(all_bets) < 1:
+        await message.answer('За этот период игр не найдено')
+        return
     text = [
         f'Количество игр: {len(ids)}',
         f'Банк: {sum(all_bets)}',
