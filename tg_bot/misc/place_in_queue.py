@@ -1,6 +1,3 @@
-import asyncio
-
-
 async def place_in_queue(_users, user_id):
     count = 0
     result = []

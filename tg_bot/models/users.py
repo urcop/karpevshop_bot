@@ -187,13 +187,20 @@ class Referral(Base):
             result = await db_session.execute(sql)
             return result.scalar()
 
+    @classmethod
+    async def get_referrals(cls, user_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id).where(cls.referrer == user_id)
+            result = await db_session.execute(sql)
+            return result.all()
+
 
 if __name__ == '__main__':
     async def blabla():
         config = load_config()
         session_maker = await create_db_session(config)
 
-        await Referral.get_referrer(session_maker=session_maker, telegram_id=5667987919)
+        print(await Referral.get_referrals(383212537, session_maker))
 
 
     asyncio.run(blabla())

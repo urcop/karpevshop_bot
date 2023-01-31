@@ -10,6 +10,7 @@ from tg_bot.keyboards.reply.admin import admin_keyboard
 from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
+from tg_bot.models.jackpot import JackpotGame, JackpotBets
 from tg_bot.models.lottery import TicketGames
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
@@ -274,7 +275,8 @@ async def finish(message: types.Message):
     await message.answer('Проверка закончена!\n'
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
-    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8, session_maker=session_maker)
+    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8,
+                                           session_maker=session_maker)
 
 
 async def returns_output(call: types.CallbackQuery, callback_data: dict):
@@ -528,6 +530,39 @@ async def support_stats(message: types.Message):
                          f"Отклонил {canceled} тикетов")
 
 
+async def ref_stats(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    user_id = int(params[1])
+    user = User(telegram_id=user_id)
+    count_refs = await user.count_referrals(session_maker, user)
+    referrals = [ref[0] for ref in await Referral.get_referrals(user_id, session_maker)]
+    referrals_gold = [await GoldHistory.get_sum_user_purchase(session_maker, referral) for referral in referrals if
+                      await GoldHistory.get_sum_user_purchase(session_maker, referral)]
+
+    text = [
+        f'👥 Количество приглашенных пользователей: {count_refs}',
+        f'Куплено золота рефералами: {sum(referrals_gold)}'
+    ]
+
+    await message.answer('\n'.join(text))
+
+
+async def jackpot_stats(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    date = params[1]
+    ids = [id[0] for id in await JackpotGame.get_all_room_ids_period(date, session_maker)]
+    all_bets = [await JackpotBets.get_sum_bets(id, session_maker) for id in ids]
+
+    text = [
+        f'Количество игр: {len(ids)}',
+        f'Банк: {sum(all_bets)}',
+        f'Максимальный банк: {max(all_bets)}'
+    ]
+    await message.answer('\n'.join(text))
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
@@ -553,7 +588,8 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(delete_product, Command(['dprod']), is_admin=True)
     dp.register_message_handler(add_product, Command(['addproduct']), is_admin=True)
     dp.register_message_handler(support_stats, Command(['rep']), is_admin=True)
-    # dp.register_message_handler(ref_stats, Command(['ref']), is_admin=True)
+    dp.register_message_handler(ref_stats, Command(['ref']), is_admin=True)
+    dp.register_message_handler(jackpot_stats, Command(['jpinfo']), is_admin=True)
     dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)
     dp.register_message_handler(add_product_description, state=AddProduct.description, is_admin=True)
     dp.register_message_handler(add_product_price, state=AddProduct.price, is_admin=True)

@@ -1,4 +1,3 @@
-
 async def generate_text_top(top_users: list, period: str):
     period_text = 'недели' if period == 'week' else 'месяца'
     if len(top_users) > 10:

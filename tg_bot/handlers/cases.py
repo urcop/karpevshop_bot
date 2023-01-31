@@ -123,7 +123,6 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
         user_id = call.from_user.id
         channel_id = call.bot['config'].misc.channel_id
         user_channel_status = await call.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
-        logging.info(user_channel_status)
         if user_channel_status['status'] != 'left':
             if await FreeCaseCooldown.is_exists(session_maker=session_maker, telegram_id=user_id):
                 if await FreeCaseCooldown.is_active(session_maker=session_maker, telegram_id=user_id):

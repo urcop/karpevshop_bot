@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func, update
+from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func, update, and_
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -23,6 +23,16 @@ class JackpotGame(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_all_room_ids_period(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(cls.id)
+            else:
+                sql = select(cls.id).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.all()
 
     @classmethod
     async def check_available_room(cls, session_maker: sessionmaker):
@@ -55,6 +65,16 @@ class JackpotGame(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_count_games_period(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.count(cls.id))
+            else:
+                sql = select(func.count(cls.id)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
 
 
 class JackpotBets(Base):
