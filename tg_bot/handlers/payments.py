@@ -139,7 +139,7 @@ def register_payments(dp: Dispatcher):
     dp.register_callback_query_handler(get_payment_system,
                                        payment.payment_choice_callback.filter(),
                                        state=PaymentState.amount)
-    dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='*')
+    dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='qiwi')
     dp.register_callback_query_handler(payment_cancel, text='payment_qiwi_cancel', state='*')
     dp.register_callback_query_handler(payment_check, text='payment_check', state='payment_qiwi_success')
     dp.register_message_handler(get_payment_check, state='payment_check', content_types=['any'])
