@@ -262,31 +262,35 @@ async def choosing_an_item_name(call: types.CallbackQuery, state: FSMContext, ca
 
 
 async def get_photo_output(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        session_maker = message.bot['db']
-        item_id = await Item.get_item_id_by_name(item_name=data['item_name'], session_maker=session_maker)
-        config = message.bot['config']
-        file_name = f'{message.from_user.id}_{randint(1000, 9999)}.jpg'
-        await message.photo[-1].download(destination_file=config.misc.base_dir / 'uploads' / 'outputs' / file_name)
-        user_nickname = message.from_user.username if message.from_user.username else message.from_user.full_name
-        await User.take_currency(session_maker=session_maker, telegram_id=message.from_user.id,
-                                 currency_type='gold', value=data['count'])
-        await OutputQueue.add_to_queue(user_id=message.from_user.id, item_id=item_id, photo=file_name,
-                                       user_nickname=user_nickname,
-                                       gold=data['count'], session_maker=session_maker)
-        admins_and_workers = await User.get_admins(session_maker) + await User.get_workers(session_maker)
-        admins_and_workers = [user[0] for user in admins_and_workers]
-        list(set(admins_and_workers))
+    if not message.media_group_id:
+        async with state.proxy() as data:
+            session_maker = message.bot['db']
+            item_id = await Item.get_item_id_by_name(item_name=data['item_name'], session_maker=session_maker)
+            config = message.bot['config']
+            file_name = f'{message.from_user.id}_{randint(1000, 9999)}.jpg'
+            await message.photo[-1].download(destination_file=config.misc.base_dir / 'uploads' / 'outputs' / file_name)
+            user_nickname = message.from_user.username if message.from_user.username else message.from_user.full_name
+            await User.take_currency(session_maker=session_maker, telegram_id=message.from_user.id,
+                                     currency_type='gold', value=data['count'])
+            await OutputQueue.add_to_queue(user_id=message.from_user.id, item_id=item_id, photo=file_name,
+                                           user_nickname=user_nickname,
+                                           gold=data['price'], session_maker=session_maker)
+            admins_and_workers = await User.get_admins(session_maker) + await User.get_workers(session_maker)
+            admins_and_workers = [user[0] for user in admins_and_workers]
+            list(set(admins_and_workers))
 
-        for user in admins_and_workers:
-            await message.bot.send_message(chat_id=user,
-                                           text=f'❗️Получен новый запрос на вывод от пользователя '
-                                                f'{message.from_user.get_mention(f"@{user_nickname}")}')
-        users = await OutputQueue.get_all_queue(session_maker)
-        place = await place_in_queue(users, message.from_user.id)
-        await message.answer('💫Ваш запрос на вывод добавлен, ожидайте.\n\n'
-                             f'Вы {place[-1][0] + 1} в очереди', reply_markup=gold_menu_keyboard)
-        await state.finish()
+            for user in admins_and_workers:
+                await message.bot.send_message(chat_id=user,
+                                               text=f'❗️Получен новый запрос на вывод от пользователя '
+                                                    f'{message.from_user.get_mention(f"@{user_nickname}")}')
+            users = await OutputQueue.get_all_queue(session_maker)
+            place = await place_in_queue(users, message.from_user.id)
+            await message.answer('💫Ваш запрос на вывод добавлен, ожидайте.\n\n'
+                                 f'Вы {place[-1][0] + 1} в очереди', reply_markup=gold_menu_keyboard)
+            await state.finish()
+    else:
+        await message.answer('Отправьте 1 фото')
+        return
 
 
 async def output_queue(message: types.Message):

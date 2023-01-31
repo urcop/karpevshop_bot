@@ -244,7 +244,7 @@ async def output(message: types.Message):
     ]
     await message.answer_photo(photo=photo_file, caption='\n'.join(text),
                                reply_markup=await returns_output_button(user_id=user,
-                                                                        gold=int(int(gold) * config.misc.gold_rate),
+                                                                        gold=int(gold),
                                                                         ticket_id=id))
 
 
@@ -274,13 +274,13 @@ async def finish(message: types.Message):
     await message.answer('Проверка закончена!\n'
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
-    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=gold, session_maker=session_maker)
+    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8, session_maker=session_maker)
 
 
 async def returns_output(call: types.CallbackQuery, callback_data: dict):
     session_maker = call.bot['db']
     user = int(callback_data.get('user_id'))
-    gold = int(callback_data.get('gold'))
+    gold = int(callback_data.get('gold')) * 0.8
     id = int(callback_data.get('ticket_id'))
     await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
     admins = await User.get_admins(session_maker)
