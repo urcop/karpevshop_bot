@@ -38,7 +38,10 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
         if payment_system == 'QIWI':
             url = Payment(amount=payment_amount)
             url.create()
-            await call.message.edit_text(
+            await call.message.delete()
+            await call.message.answer('Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты',
+                                      reply_markup=main_menu.keyboard)
+            await call.message.answer(
                 text=f'Вам нужно отправить  {payment_amount} руб на наш счет Qiwi\n'
                      f'Ссылка: <a href="{url.invoice}">{url.invoice[:40]}...</a>\n'
                      f'Указав комментарий: \n<code>{url.id}</code>',
@@ -85,7 +88,7 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
 
         text = [
             f'Пользователь: {call.from_user.id}',
-            f'Пополнил баланс на {payment.amount} руб'
+            f'пополнил баланс на {payment.amount} руб'
         ]
         logging.info(' '.join(text))
         for admin in await User.get_admins(session_maker=session_maker):
@@ -95,6 +98,11 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
         await BalanceHistory.add_balance_purchase(session_maker=session_maker,
                                                   telegram_id=call.from_user.id,
                                                   money=payment.amount)
+    await state.finish()
+
+
+async def payment_cancel(call: types.CallbackQuery, state: FSMContext):
+    await call.message.edit_text('Операция отменена')
     await state.finish()
 
 
@@ -131,6 +139,7 @@ def register_payments(dp: Dispatcher):
     dp.register_callback_query_handler(get_payment_system,
                                        payment.payment_choice_callback.filter(),
                                        state=PaymentState.amount)
-    dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='qiwi')
-    dp.register_callback_query_handler(payment_check, text='payment_check', state='*')
+    dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='*')
+    dp.register_callback_query_handler(payment_cancel, text='payment_qiwi_cancel', state='*')
+    dp.register_callback_query_handler(payment_check, text='payment_check', state='payment_qiwi_success')
     dp.register_message_handler(get_payment_check, state='payment_check', content_types=['any'])

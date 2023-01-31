@@ -1,5 +1,4 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils import callback_data
 from aiogram.utils.callback_data import CallbackData
 
 payment_choice_callback = CallbackData('payment_choice', 'choice')
@@ -36,10 +35,17 @@ def generate_qiwi_keyboard(payment_url):
                     text='Проверить оплату',
                     callback_data='payment_qiwi_success'
                 )
+            ],
+            [
+                InlineKeyboardButton(
+                    text='Отмена',
+                    callback_data='payment_qiwi_cancel'
+                )
             ]
         ]
     )
     return keyboard
+
 
 check = InlineKeyboardMarkup(
     inline_keyboard=[
