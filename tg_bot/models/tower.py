@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import String, Column, Integer, insert, select, func
+from sqlalchemy import String, Column, Integer, insert, select, func, BigInteger
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -9,7 +9,7 @@ from tg_bot.services.db_base import Base
 class TowerGames(Base):
     __tablename__ = 'tower_games'
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer)
+    user_id = Column(BigInteger)
     bet = Column(Integer)
     win = Column(Integer)
     unix_date = Column(Integer, default=datetime.datetime.now().timestamp())

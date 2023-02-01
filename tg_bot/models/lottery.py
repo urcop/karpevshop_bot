@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import String, Column, Integer, insert, select, Boolean, func, and_
+from sqlalchemy import String, Column, Integer, insert, select, Boolean, func, and_, BigInteger
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -48,7 +48,7 @@ class LotteryTickets(Base):
 class TicketGames(Base):
     __tablename__ = 'ticket_games'
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer)
+    user_id = Column(BigInteger)
     ticket_id = Column(Integer)
     bet = Column(Integer)
     win = Column(Integer)
