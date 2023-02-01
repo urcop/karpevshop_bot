@@ -21,7 +21,7 @@ async def generate_next_top_text(top_users: list, user_id: int):
             text = f'Вы на {i + 1} месте.'
             break
         elif top_users[i][0] == user_id:
-            pred_golds = top_users[i - 1][1] - top_users[i][1]
+            pred_golds = top_users[i - 1][1] - top_users[i][1] + 1
             text = f'Вы на {i + 1} месте. Чтобы обогнать следующего пользователя, вам нужно купить {pred_golds} G. Займите первое место, чтобы получить вознаграждение.'
         i += 1
     return text

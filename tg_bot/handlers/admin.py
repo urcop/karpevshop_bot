@@ -41,16 +41,17 @@ async def user_information(message: types.Message):
     user_id = int(text[1])
     user_balance = await User.get_balance(session_maker=session_maker, telegram_id=user_id)
     user_gold = await User.get_gold(session_maker=session_maker, telegram_id=user_id)
-    count_purchases = await GoldHistory.get_sum_user_purchase(session_maker=session_maker,
-                                                              telegram_id=message.from_user.id)
+    count_purchases = await GoldHistory.get_count_user_purchase(session_maker=session_maker,
+                                                                telegram_id=user_id)
     user = User(telegram_id=user_id)
     count_refs = await User.count_referrals(session_maker=session_maker, user=user)
+    count_outputs = await OutputQueue.get_user_requests(user_id=user_id, session_maker=session_maker)
 
     text = [
         f'🔑 ID: {user_id}',
         f'💸 Баланс: {user_balance} руб.',
         f'💰 Золото: {user_gold}',
-        '⏰ Запросов на вывод золота: 0',
+        f'⏰ Запросов на вывод золота: {count_outputs}',
         f'💵 Куплено золота: {count_purchases} за все время',
         f'👥 Количество приглашенных пользователей: {count_refs if count_refs else 0}'
     ]

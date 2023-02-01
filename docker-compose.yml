@@ -37,3 +37,6 @@ services:
 networks:
   bot:
     driver: bridge
+
+volumes:
+  cache:

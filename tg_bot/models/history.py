@@ -42,6 +42,13 @@ class GoldHistory(Base):
             return result.scalar()
 
     @classmethod
+    async def get_count_user_purchase(cls, session_maker: sessionmaker, telegram_id: int):
+        async with session_maker() as db_session:
+            sql = select(func.count(cls.gold)).where(cls.telegram_id == telegram_id)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def get_history_period(cls, session_maker: sessionmaker, start_time: int, end_time: int):
         async with session_maker() as db_session:
             sql = select(

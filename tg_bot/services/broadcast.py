@@ -46,7 +46,7 @@ async def broadcast(bot: Bot, users: list, text: str, message_type: str, disable
             elif message_type == 'photo':
                 if await send_photo(bot, user_id, text, photo_id, disable_notifications):
                     count += 1
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.033)
     finally:
         logging.info(f"{count} messages successful sent.")
 

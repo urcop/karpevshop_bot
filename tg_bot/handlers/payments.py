@@ -22,7 +22,7 @@ async def get_amount(message: types.Message, state: FSMContext):
             data['amount'] = int(message.text)
             min_payment = message.bot['config'].qiwi.min_payment_qiwi
             if data['amount'] >= min_payment:
-                await message.answer(f'Вы хотитите пополнить баланс на {data["amount"]} руб.\n'
+                await message.answer(f'Вы хотите пополнить баланс на {data["amount"]} руб.\n'
                                      f'Выберите способ оплаты:', reply_markup=payment.choice_keyboard)
             else:
                 await message.answer('Минимальная сумма пополнения 10 рублей')
@@ -141,5 +141,5 @@ def register_payments(dp: Dispatcher):
                                        state=PaymentState.amount)
     dp.register_callback_query_handler(payment_success, text='payment_qiwi_success', state='qiwi')
     dp.register_callback_query_handler(payment_cancel, text='payment_qiwi_cancel', state='*')
-    dp.register_callback_query_handler(payment_check, text='payment_check', state='payment_qiwi_success')
+    dp.register_callback_query_handler(payment_check, text='payment_check', state='*')
     dp.register_message_handler(get_payment_check, state='payment_check', content_types=['any'])
