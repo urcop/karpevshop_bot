@@ -1,6 +1,6 @@
 import asyncio
 
-from sqlalchemy import String, Column, Integer, insert, select, update, BigInteger, and_
+from sqlalchemy import String, Column, Integer, insert, select, update, BigInteger, and_, func
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -17,6 +17,13 @@ class Promocode(Base):
     value = Column(Integer)
 
     @classmethod
+    async def get_last_promo(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def create_promo(cls,
                            session_maker: sessionmaker,
                            code_name: str,
@@ -24,7 +31,9 @@ class Promocode(Base):
                            count_use: int,
                            value: int) -> 'Promocode':
         async with session_maker() as db_session:
+            id = await cls.get_last_promo(session_maker)
             sql = insert(cls).values(
+                id=id + 1 if id else 1,
                 code_name=code_name,
                 currency=currency,
                 count_use=count_use,
@@ -94,9 +103,17 @@ class User2Promo(Base):
     user_id = Column(BigInteger)
 
     @classmethod
+    async def get_last_user2promo(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_user_promo(cls, user_id: int, promo_id: int, session_maker: sessionmaker) -> 'User2Promo':
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, promo_id=promo_id)
+            id = await cls.get_last_user2promo(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, promo_id=promo_id)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

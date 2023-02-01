@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, String, insert, delete, update, select
+from sqlalchemy import Column, Integer, String, insert, delete, update, select, func
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -22,14 +22,23 @@ class Product(Base):
     async def add_product(cls, name: str, description: str,
                           price: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(name=name, description=description, price=price)
+            id = await cls.get_last_product(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, name=name, description=description, price=price)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
 
     @classmethod
+    async def get_last_product(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def delete_product(cls, name: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            id = await cls.get_last_product(session_maker)
             sql = delete(cls).where(cls.name == name)
             result = await db_session.execute(sql)
             await db_session.commit()

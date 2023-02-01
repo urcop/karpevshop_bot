@@ -56,10 +56,19 @@ class TicketGames(Base):
     date = Column(String, default=(datetime.datetime.now()).strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_ticket_game(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_game(cls, user_id: int, ticket_id: int,
                        bet: int, win: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            id = await cls.get_last_ticket_game(session_maker)
             sql = insert(cls).values(
+                id=id + 1 if id else 1,
                 user_id=user_id,
                 ticket_id=ticket_id,
                 bet=bet,

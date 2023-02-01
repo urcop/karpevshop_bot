@@ -7,7 +7,7 @@ from tg_bot.services.db_base import Base
 
 async def create_db_session(config: Config):
     engine = create_async_engine(
-        f"postgresql+asyncpg://{config.db.user}:{config.db.password}@{config.db.host}/{config.db.database}",
+        f"postgresql+asyncpg://{config.db.user}:{config.db.password}@{config.db.host}:{config.db.port}/{config.db.database}",
         future=True
     )
     async with engine.begin() as conn:

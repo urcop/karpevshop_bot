@@ -120,12 +120,15 @@ async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data
 
 async def tower_game_end(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
     session_maker = call.bot['db']
+    data = await state.get_data()
     win = int(callback_data.get('current_bet'))
     await call.message.delete()
     await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                             currency_type='gold', value=win)
     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=win)
+    await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=win,
+                              session_maker=session_maker)
     await state.finish()
 
 

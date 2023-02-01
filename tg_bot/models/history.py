@@ -18,10 +18,18 @@ class GoldHistory(Base):
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_gh(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_gold_purchase(cls, session_maker: sessionmaker, telegram_id: int,
                                 gold: int):
         async with session_maker() as db_session:
-            sql = insert(cls).values(telegram_id=telegram_id, gold=gold)
+            id = await cls.get_last_gh(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, gold=gold)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -82,10 +90,18 @@ class BalanceHistory(Base):
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_bh(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_balance_purchase(cls, session_maker: sessionmaker, telegram_id: int,
                                    money: int):
         async with session_maker() as db_session:
-            sql = insert(cls).values(telegram_id=telegram_id, balance=money)
+            id = await cls.get_last_bh(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, balance=money)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -111,10 +127,19 @@ class CaseHistory(Base):
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_ch(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_case_open(cls, session_maker: sessionmaker, telegram_id: int,
                             gold_won: int, money_spent: int):
         async with session_maker() as db_session:
-            sql = insert(cls).values(telegram_id=telegram_id, gold_won=gold_won, money_spent=money_spent)
+            id = await cls.get_last_ch(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, gold_won=gold_won,
+                                     money_spent=money_spent)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

@@ -68,9 +68,17 @@ class Season2User(Base):
     current_prefix = Column(String, default='Нет префикса')
 
     @classmethod
+    async def get_last_s2u(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_user_to_season(cls, session_maker: sessionmaker, season_id: int, telegram_id: int):
         async with session_maker() as db_session:
-            sql = insert(cls).values(season_id=season_id, telegram_id=telegram_id)
+            id = await cls.get_last_s2u(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1,season_id=season_id, telegram_id=telegram_id)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

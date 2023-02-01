@@ -19,10 +19,18 @@ class Tickets(Base):
     @classmethod
     async def add_ticket(cls, user_id: int, message: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, message=message)
+            id = await cls.get_last_ticket(session_maker) + 1
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, message=message)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_last_ticket(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     @classmethod
     async def update_status(cls, ticket_id: int, status: int, session_maker: sessionmaker):
@@ -89,7 +97,7 @@ class Tickets(Base):
     async def get_cancel_support_tickets(cls, support_id: int, date: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = select(func.count(cls.id)).where(
-                    and_(cls.status == -2, cls.support_id == support_id, cls.date_done == date))
+                and_(cls.status == -2, cls.support_id == support_id, cls.date_done == date))
             result = await db_session.execute(sql)
             return result.scalar()
 
@@ -97,7 +105,7 @@ class Tickets(Base):
     async def get_done_support_tickets(cls, support_id: int, date: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = select(func.count(cls.id)).where(
-                    and_(cls.status == -1, cls.support_id == support_id, cls.date_done == date))
+                and_(cls.status == -1, cls.support_id == support_id, cls.date_done == date))
             result = await db_session.execute(sql)
             return result.scalar()
 
@@ -159,8 +167,16 @@ class SupportBan(Base):
                 else:
                     sql = update(cls).where(cls.user_id == user_id).values({'count': cls.count + 1})
             else:
-                sql = insert(cls).values(user_id=user_id, count=1)
+                id = await cls.get_last_supportban(session_maker)
+                sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, count=1)
 
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_last_supportban(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()

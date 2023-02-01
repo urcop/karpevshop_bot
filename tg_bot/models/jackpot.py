@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func, update, and_
+from sqlalchemy import Column, Integer, BigInteger, String, insert, select, func, update
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -17,9 +17,17 @@ class JackpotGame(Base):
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_jackpot(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def create_room(cls, end_time: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(active=1, time_end=end_time)
+            id = await cls.get_last_jackpot(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, active=1, time_end=end_time)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -85,9 +93,17 @@ class JackpotBets(Base):
     bet = Column(Integer)
 
     @classmethod
+    async def get_last_jackpot_bets(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_bet(cls, user_id: int, room_id: int, bet: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, room_id=room_id, bet=bet)
+            id = await cls.get_last_jackpot_bets(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, room_id=room_id, bet=bet)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

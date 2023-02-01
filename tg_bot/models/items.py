@@ -73,10 +73,18 @@ class OutputQueue(Base):
     gold = Column(Float)
 
     @classmethod
+    async def get_last_queue(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_to_queue(cls, user_id: int, item_id: int, photo: str, user_nickname: str, gold: int,
                            session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, item_id=item_id, photo=photo,
+            id = await cls.get_last_queue(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, item_id=item_id, photo=photo,
                                      user_nickname=user_nickname, gold=gold)
             result = await db_session.execute(sql)
             await db_session.commit()

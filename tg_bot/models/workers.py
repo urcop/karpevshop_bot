@@ -17,9 +17,17 @@ class Worker(Base):
     active = Column(Boolean, default=False)
 
     @classmethod
+    async def get_last_worker(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_worker(cls, user_id: int, password: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, password=password)
+            id = await cls.get_last_worker(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, password=password)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -57,9 +65,17 @@ class WorkerHistory(Base):
     date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
+    async def get_last_worker_history(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_worker_history(cls, worker_id: int, gold: float, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(worker_id=worker_id, gold=gold)
+            id = await cls.get_last_worker_history(session_maker)
+            sql = insert(cls).values(id=id if id else 1, worker_id=worker_id, gold=gold)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -84,9 +100,17 @@ class Support(Base):
     active_ticket = Column(Integer, default=0)
 
     @classmethod
+    async def get_last_support(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
+
+    @classmethod
     async def add_support(cls, user_id: int, password: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(user_id=user_id, password=password)
+            id = await cls.get_last_support(session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, password=password)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
