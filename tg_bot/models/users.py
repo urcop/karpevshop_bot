@@ -17,7 +17,7 @@ class User(Base):
     balance = Column(Integer, default=0)
     gold = Column(Integer, default=0)
     role = Column(String(length=100), default='user')
-    reg_date = Column(Date, default=datetime.now().strftime('%d.%m.%Y'))
+    reg_date = Column(String, default=datetime.now().strftime('%d.%m.%Y'))
 
     @classmethod
     async def get_user(cls, session_maker: sessionmaker, telegram_id: int) -> 'User':
