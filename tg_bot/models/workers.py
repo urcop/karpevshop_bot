@@ -75,7 +75,7 @@ class WorkerHistory(Base):
     async def add_worker_history(cls, worker_id: int, gold: float, session_maker: sessionmaker):
         async with session_maker() as db_session:
             id = await cls.get_last_worker_history(session_maker)
-            sql = insert(cls).values(id=id if id else 1, worker_id=worker_id, gold=gold)
+            sql = insert(cls).values(id=id + 1 if id else 1, worker_id=worker_id, gold=gold)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

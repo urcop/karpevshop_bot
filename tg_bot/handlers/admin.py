@@ -41,8 +41,8 @@ async def user_information(message: types.Message):
     user_id = int(text[1])
     user_balance = await User.get_balance(session_maker=session_maker, telegram_id=user_id)
     user_gold = await User.get_gold(session_maker=session_maker, telegram_id=user_id)
-    count_purchases = await GoldHistory.get_count_user_purchase(session_maker=session_maker,
-                                                                telegram_id=user_id)
+    count_purchases = await GoldHistory.get_sum_user_purchase(session_maker=session_maker,
+                                                              telegram_id=user_id)
     user = User(telegram_id=user_id)
     count_refs = await User.count_referrals(session_maker=session_maker, user=user)
     count_outputs = await OutputQueue.get_user_requests(user_id=user_id, session_maker=session_maker)
@@ -76,6 +76,9 @@ async def generate_currency_text(type: str, notify_text: dict, session_maker: se
         count_currency = count_currency * -1
         await User.take_currency(session_maker=session_maker, telegram_id=user_id, currency_type=type,
                                  value=count_currency)
+        if type == 'balance':
+            await BalanceHistory.add_balance_purchase(session_maker, user_id, count_currency * -1)
+
         notify_text['user_notify'] = f'С вашего счета снято {count_currency} {text}'
         notify_text['admin_confirm'] = f'Счет пользователя {user_id} снято {count_currency} {text}'
     return notify_text

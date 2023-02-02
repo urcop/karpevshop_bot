@@ -314,17 +314,19 @@ async def rewards(message: types.Message):
     current_season_id = await Season.get_current_season(session_maker, now)
     times = await Season.get_season_time(session_maker, current_season_id)
 
-    current_prefix = await Season2User.get_user_prefix(session_maker=session_maker,
-                                                       telegram_id=message.from_user.id,
-                                                       season_id=current_season_id)
-    current_prefix_type = await get_prefix_type_reverse(current_prefix)
+    gold_in_season = await GoldHistory.get_gold_user_period(session_maker, start_time=int(times[0]),
+                                                            end_time=int(times[1]), user_id=message.from_user.id)
+    prefix_type = await get_prefix_type(gold_in_season)
+    current_prefix = await prefixes(prefix_type)
+
+    current_prefix_type = await get_prefix_type_reverse(current_prefix[1])
     prev_prefix = await Season2User.get_user_prefix(session_maker=session_maker,
                                                     telegram_id=message.from_user.id,
                                                     season_id=current_season_id - 1)
     if current_season_id > 1:
         text.append(f'📂 {current_season_id - 1} Сезон: {prev_prefix}')
 
-    text.append(f'📂 {current_season_id} Сезон: {current_prefix}')
+    text.append(f'📂 {current_season_id} Сезон: {current_prefix[1]}')
     try:
         next_reward = await prefixes(current_prefix_type + 1)
         text.append(f'🎁 Следующая награда - {next_reward[0]}G')

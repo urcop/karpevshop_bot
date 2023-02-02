@@ -39,8 +39,10 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
             url = Payment(amount=payment_amount)
             url.create()
             await call.message.delete()
-            await call.message.answer('Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты',
-                                      reply_markup=main_menu.keyboard)
+            await call.message.answer(
+                'Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты '
+                'либо <b>Отмена для завершения операции</b>',
+                reply_markup=main_menu.keyboard)
             await call.message.answer(
                 text=f'Вам нужно отправить  {payment_amount} руб на наш счет Qiwi\n'
                      f'Ссылка: <a href="{url.invoice}">{url.invoice[:40]}...</a>\n'

@@ -115,6 +115,7 @@ async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data
                                       session_maker=session_maker)
             await call.message.delete()
             await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
+            await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win)
             await state.finish()
 
 
@@ -216,6 +217,7 @@ async def jackpot_game(bot, session_maker, room_id):
         winner_winning = bank / 100 * 90
         bot_win = bank / 100 * 10
         await User.add_currency(session_maker, winner, 'gold', winner_winning)
+        await GoldHistory.add_gold_purchase(session_maker, winner, winner_winning)
         await JackpotGame.update_params_room(room_id, winner, int(winner_winning), bot_jackpot=bot_win,
                                              session_maker=session_maker)
 
@@ -273,6 +275,7 @@ async def lottery_ticket_buy(call: types.CallbackQuery, callback_data: dict):
                                 currency_type='gold', value=win)
 
         await call.message.edit_text(f'Вы выиграли {win}G')
+        await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win)
         logging.info(f'пользователь - {call.from_user.id} выиграл в лотерее {win}G')
     else:
         await call.message.edit_text('Недостаточно средств')
