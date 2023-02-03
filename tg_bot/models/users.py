@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, Date
+from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -155,6 +155,13 @@ class User(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_reg_date(cls, user_id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.reg_date).where(user_id == cls.telegram_id)
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     def __repr__(self):
         return f'User (ID: {self.telegram_id} - {self.fullname})'

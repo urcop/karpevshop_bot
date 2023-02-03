@@ -14,6 +14,7 @@ from tg_bot.models.jackpot import JackpotGame, JackpotBets
 from tg_bot.models.lottery import TicketGames
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
+from tg_bot.models.seasons import Season, Season2User
 from tg_bot.models.support import Tickets
 from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User, Referral
@@ -39,20 +40,25 @@ async def user_information(message: types.Message):
     session_maker = message.bot['db']
     text = message.text.split(' ')
     user_id = int(text[1])
+    reg_date = await User.get_reg_date(user_id=user_id, session_maker=session_maker)
     user_balance = await User.get_balance(session_maker=session_maker, telegram_id=user_id)
     user_gold = await User.get_gold(session_maker=session_maker, telegram_id=user_id)
     count_purchases = await GoldHistory.get_sum_user_purchase(session_maker=session_maker,
                                                               telegram_id=user_id)
+    seasons_id = await Season.get_all_seasons(session_maker=session_maker)
     user = User(telegram_id=user_id)
     count_refs = await User.count_referrals(session_maker=session_maker, user=user)
     count_outputs = await OutputQueue.get_user_requests(user_id=user_id, session_maker=session_maker)
-
+    user_prefixes = [f'{season[0]}: {await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=user_id, season_id=int(season[0]))}'for season in seasons_id]
+    user_prefixes_text = ' '.join(user_prefixes)
     text = [
+        f'📂 Дата регистрации: {reg_date}',
         f'🔑 ID: {user_id}',
         f'💸 Баланс: {user_balance} руб.',
         f'💰 Золото: {user_gold}',
         f'⏰ Запросов на вывод золота: {count_outputs}',
         f'💵 Куплено золота: {count_purchases} за все время',
+        f'🎁 Префиксы: {user_prefixes_text}',
         f'👥 Количество приглашенных пользователей: {count_refs if count_refs else 0}'
     ]
     await message.answer('\n'.join(text))

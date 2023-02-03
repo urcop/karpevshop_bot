@@ -56,6 +56,14 @@ class Season(Base):
             result = await db_session.execute(sql)
             return result.first()
 
+
+    @classmethod
+    async def get_all_seasons(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls.id)
+            result = await db_session.execute(sql)
+            return result.all()
+
     def __repr__(self):
         return f'{self.id}:{datetime.datetime.fromtimestamp(self.start_season).strftime("%d.%m.%Y")}'
 
@@ -113,15 +121,20 @@ class Season2User(Base):
             result = await db_session.execute(sql)
             return True if result.first() else False
 
+    @classmethod
+    async def get_all_users(cls, session_maker: sessionmaker, season_id: int):
+        async with session_maker() as db_session:
+            sql = select(cls.telegram_id).where(cls.season_id == season_id)
+            result = await db_session.execute(sql)
+            return result.all()
+
 
 if __name__ == '__main__':
     async def main():
         config = load_config()
         session = await create_db_session(config)
-        now = int(datetime.datetime.now().timestamp())
 
-        print(await Season.create_new_season(session_maker=session))
-        # print(await Season.check_available_season(session_maker=session))
+        print(await Season.get_all_seasons(session_maker=session))
 
 
     asyncio.run(main())

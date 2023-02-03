@@ -100,7 +100,7 @@ class OutputQueue(Base):
     @classmethod
     async def get_all_queue(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls.user_id, cls.gold).where(cls.worker == 0)
+            sql = select(cls.user_id, cls.gold)
             result = await db_session.execute(sql)
             return result.all()
 
