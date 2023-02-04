@@ -41,7 +41,7 @@ class Promocode(Base):
             )
             result = await db_session.execute(sql)
             await db_session.commit()
-            return result.first()
+            return result
 
     @classmethod
     async def get_promo(cls, code_name: str, session_maker: sessionmaker) -> bool:

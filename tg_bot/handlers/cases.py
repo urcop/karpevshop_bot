@@ -1,4 +1,3 @@
-import logging
 import random
 
 from aiogram import types, Dispatcher
@@ -8,6 +7,19 @@ from tg_bot.keyboards.inline.channel_sub import generate_channel_sub_keyboard
 from tg_bot.models.case import CaseItems, FreeCaseCooldown
 from tg_bot.models.history import GoldHistory, CaseHistory
 from tg_bot.models.users import User
+
+
+async def _give_free_case(session_maker, user_id):
+    await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
+    gold = random.randint(1, 3)
+    await User.add_currency(
+        session_maker=session_maker,
+        telegram_id=user_id,
+        currency_type='gold',
+        value=gold
+    )
+    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
+    return f'На ваш счет зачислено {gold}G'
 
 
 async def cases(message: types.Message):
@@ -31,32 +43,17 @@ async def case(call: types.CallbackQuery, callback_data: dict):
         if user_channel_status['status'] != 'left':
             if await FreeCaseCooldown.is_exists(session_maker=session_maker, telegram_id=user_id):
                 if await FreeCaseCooldown.is_active(session_maker=session_maker, telegram_id=user_id):
-                    await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
-                    gold = random.randint(1, 3)
-                    await User.add_currency(
-                        session_maker=session_maker,
-                        telegram_id=user_id,
-                        currency_type='gold',
-                        value=gold
-                    )
-                    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
-                    await call.message.answer(f'На ваш счет зачислено {gold}G')
+                    text = await _give_free_case(session_maker, user_id)
+                    await call.message.answer(text)
                 else:
                     time = await FreeCaseCooldown.get_remaining_time(session_maker=session_maker, telegram_id=user_id)
-                    await call.message.edit_text('Вы уже открыли бесплатный кейс.\n'
-                                                 f'Следующий кейс будет доступен через: {time}')
+                    await call.message.delete()
+                    await call.message.answer('Вы уже открыли бесплатный кейс.\n'
+                                              f'Следующий кейс будет доступен через: {time}')
             else:
                 await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id)
-                await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
-                gold = random.randint(1, 3)
-                await User.add_currency(
-                    session_maker=session_maker,
-                    telegram_id=user_id,
-                    currency_type='gold',
-                    value=gold
-                )
-                await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
-                await call.message.edit_text(f'На ваш счет зачислено {gold}G')
+                text = await _give_free_case(session_maker, user_id)
+                await call.message.answer(text)
         else:
             await call.message.edit_text(
                 'Чтобы получить бесплатный кейс вы должны быть подписаны на группу\n'
@@ -126,32 +123,16 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
         if user_channel_status['status'] != 'left':
             if await FreeCaseCooldown.is_exists(session_maker=session_maker, telegram_id=user_id):
                 if await FreeCaseCooldown.is_active(session_maker=session_maker, telegram_id=user_id):
-                    await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
-                    gold = random.randint(1, 3)
-                    await User.add_currency(
-                        session_maker=session_maker,
-                        telegram_id=user_id,
-                        currency_type='gold',
-                        value=gold
-                    )
-                    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
-                    await call.message.answer(f'На ваш счет зачислено {gold}G')
+                    text = await _give_free_case(session_maker, user_id)
+                    await call.message.answer(text)
                 else:
                     time = await FreeCaseCooldown.get_remaining_time(session_maker=session_maker, telegram_id=user_id)
                     await call.message.edit_text('Вы уже открыли бесплатный кейс.\n'
                                                  f'Следующий кейс будет доступен через: {time}')
             else:
                 await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id)
-                await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
-                gold = random.randint(1, 3)
-                await User.add_currency(
-                    session_maker=session_maker,
-                    telegram_id=user_id,
-                    currency_type='gold',
-                    value=gold
-                )
-                await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
-                await call.message.edit_text(f'На ваш счет зачислено {gold}G')
+                text = await _give_free_case(session_maker, user_id)
+                await call.message.answer(text)
         else:
             await call.message.answer('Вы не подписаны на группу')
             await call.answer(cache_time=5)

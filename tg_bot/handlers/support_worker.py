@@ -73,7 +73,8 @@ async def take_action(call: types.CallbackQuery, callback_data: dict, state: FSM
         await call.bot.send_message(chat_id=user_id, text='Ваш тикет отклонен!')
         await Tickets.update_status(ticket_id=ticket_id, status=-2, session_maker=session_maker)
     if action == 'start_dialog':
-        await call.message.edit_text('Вы начали диалог с пользователем')
+        await call.message.delete_reply_markup()
+        await call.message.answer('Вы начали диалог с пользователем')
         support_id = await Support.get_support_id(user_id=call.from_user.id, session_maker=session_maker)
         await call.bot.send_message(user_id, f'Агент тех поддержки №{support_id} начал диалог',
                                     reply_markup=user_support_keyboard)

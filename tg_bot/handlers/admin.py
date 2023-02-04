@@ -271,22 +271,22 @@ async def finish(message: types.Message):
     user = int(taken_ticket_split[1])
     gold = float(taken_ticket_split[2])
     free_tickets = len(await OutputQueue.get_all_free_queue(session_maker=session_maker))
+    await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
 
     for admin in admins:
         await message.bot.send_message(chat_id=admin[0],
                                        text=f'{message.from_user.id} завершил запрос пользователя {user}')
-    await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
+    await message.answer('Проверка закончена!\n'
+                         f'Впереди еще {free_tickets}\n'
+                         'Нажмите /output')
+    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8,
+                                           session_maker=session_maker)
     await message.bot.send_message(chat_id=user, text='🎉 Запрос на вывод золота, успешно завершён!')
     referrer = await Referral.get_referrer(telegram_id=user, session_maker=session_maker)
     if referrer:
         await message.bot.send_message(chat_id=referrer, text='Вы получили 5G за реферала')
         await User.add_currency(telegram_id=referrer, currency_type='gold', value=5, session_maker=session_maker)
         await GoldHistory.add_gold_purchase(telegram_id=referrer, gold=5, session_maker=session_maker)
-    await message.answer('Проверка закончена!\n'
-                         f'Впереди еще {free_tickets}\n'
-                         'Нажмите /output')
-    await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8,
-                                           session_maker=session_maker)
 
 
 async def returns_output(call: types.CallbackQuery, callback_data: dict):

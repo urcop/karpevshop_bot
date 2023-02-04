@@ -80,7 +80,7 @@ class User(Base):
                            session_maker: sessionmaker,
                            telegram_id: int,
                            currency_type: str,
-                           value: int) -> 'User':
+                           value: [int, float]) -> 'User':
         async with session_maker() as db_session:
             extra_context = {currency_type: cls.gold + value if currency_type == 'gold' else cls.balance + value}
             sql = update(cls).where(cls.telegram_id == telegram_id).values(extra_context)

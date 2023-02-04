@@ -4,6 +4,7 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 
 from tg_bot.keyboards.inline import support
+from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.models.support import Tickets, SupportBan
 from tg_bot.models.users import User
 from tg_bot.models.workers import Support
@@ -62,7 +63,8 @@ async def answer_action(call: types.CallbackQuery, state: FSMContext, callback_d
                 return
 
         if await Tickets.is_active(user_id=call.from_user.id, session_maker=session_maker):
-            await call.message.edit_text('Напишите пожалуйста свой вопрос')
+            await call.message.delete()
+            await call.message.answer('Напишите пожалуйста свой вопрос', reply_markup=back_to_main.keyboard)
             await state.set_state('support_message')
         else:
             await call.message.edit_text('У вас уже есть активный запрос в поддержку')
@@ -74,11 +76,11 @@ async def answer_action(call: types.CallbackQuery, state: FSMContext, callback_d
 async def support_message(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
     await Tickets.add_ticket(user_id=message.from_user.id, message=message.text, session_maker=session_maker)
-    await message.answer('Ожидайте, вам ответят в ближайшее время')
+    await message.answer('Ожидайте, вам ответят в ближайшее время', reply_markup=main_menu.keyboard)
     active_supports = [support[0] for support in await Support.get_active(session_maker=session_maker)]
+    await state.finish()
     for user in active_supports:
         await message.bot.send_message(user, 'Добавлен новый тикет')
-    await state.finish()
 
 
 def register_support(dp: Dispatcher):
