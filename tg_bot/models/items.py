@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, String, insert, select, and_, BigInteger, update, delete, Float, func
+from sqlalchemy import Column, Integer, String, insert, select, and_, BigInteger, update, delete, Float, func, desc
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -100,7 +100,7 @@ class OutputQueue(Base):
     @classmethod
     async def get_all_queue(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls.user_id, cls.gold)
+            sql = select(cls.user_id, cls.gold).order_by(cls.id.asc())
             result = await db_session.execute(sql)
             return result.all()
 
