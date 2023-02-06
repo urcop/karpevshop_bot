@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from aiogram import types, Dispatcher
@@ -75,6 +76,7 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
     await call.answer(cache_time=5)
     data = await state.get_data()
     payment: Payment = data.get('payment')
+    date = datetime.datetime.now()
     try:
         payment.check_payment()
     except NoPaymentFound:

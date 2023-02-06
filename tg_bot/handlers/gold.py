@@ -265,6 +265,7 @@ async def choosing_an_item_name(call: types.CallbackQuery, state: FSMContext, ca
 async def get_photo_output(message: types.Message, state: FSMContext):
     if not message.media_group_id:
         async with state.proxy() as data:
+            date = datetime.datetime.now()
             session_maker = message.bot['db']
             item_id = await Item.get_item_id_by_name(item_name=data['item_name'], session_maker=session_maker)
             config = message.bot['config']
@@ -275,7 +276,7 @@ async def get_photo_output(message: types.Message, state: FSMContext):
                                      currency_type='gold', value=data['count'])
             await OutputQueue.add_to_queue(user_id=message.from_user.id, item_id=item_id, photo=file_name,
                                            user_nickname=user_nickname,
-                                           gold=data['price'], session_maker=session_maker)
+                                           gold=data['price'], session_maker=session_maker, date=date)
             admins_and_workers = await User.get_admins(session_maker) + await User.get_workers(session_maker)
             admins_and_workers = [user[0] for user in admins_and_workers]
             list(set(admins_and_workers))
