@@ -14,8 +14,8 @@ class GoldHistory(Base):
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger)
     gold = Column(Integer)
-    unix_date = Column(BigInteger, default=datetime.datetime.now().timestamp())
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    unix_date = Column(BigInteger)
+    date = Column(String)
 
     @classmethod
     async def get_last_gh(cls, session_maker: sessionmaker):
@@ -26,10 +26,13 @@ class GoldHistory(Base):
 
     @classmethod
     async def add_gold_purchase(cls, session_maker: sessionmaker, telegram_id: int,
-                                gold: int):
+                                gold: int, date: datetime):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_gh(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, gold=gold)
+            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, gold=gold,
+                                     unix_date=unix_date, date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -93,8 +96,8 @@ class BalanceHistory(Base):
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger)
     balance = Column(Integer)
-    unix_date = Column(BigInteger, default=datetime.datetime.now().timestamp())
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    unix_date = Column(BigInteger)
+    date = Column(String)
 
     @classmethod
     async def get_last_bh(cls, session_maker: sessionmaker):
@@ -105,10 +108,13 @@ class BalanceHistory(Base):
 
     @classmethod
     async def add_balance_purchase(cls, session_maker: sessionmaker, telegram_id: int,
-                                   money: int):
+                                   money: int, date: datetime):
+        unix_date = int(date.timestamp())
+        admin_date = date.strftime('%d.%m.%Y')
         async with session_maker() as db_session:
             id = await cls.get_last_bh(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, balance=money)
+            sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, balance=money,
+                                     unix_date=unix_date, date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -130,8 +136,8 @@ class CaseHistory(Base):
     telegram_id = Column(BigInteger)
     gold_won = Column(Integer)
     money_spent = Column(Integer)
-    unix_date = Column(BigInteger, default=datetime.datetime.now().timestamp())
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    unix_date = Column(BigInteger)
+    date = Column(String)
 
     @classmethod
     async def get_last_ch(cls, session_maker: sessionmaker):
@@ -142,11 +148,13 @@ class CaseHistory(Base):
 
     @classmethod
     async def add_case_open(cls, session_maker: sessionmaker, telegram_id: int,
-                            gold_won: int, money_spent: int):
+                            gold_won: int, money_spent: int, date: datetime):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_ch(session_maker)
             sql = insert(cls).values(id=id + 1 if id else 1, telegram_id=telegram_id, gold_won=gold_won,
-                                     money_spent=money_spent)
+                                     money_spent=money_spent, unix_date=unix_date, date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

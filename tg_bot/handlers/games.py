@@ -93,6 +93,7 @@ async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data
     session_maker = call.bot['db']
     current_step = int(callback_data.get('current_step'))
     config = call.bot['config']
+    date = datetime.datetime.now()
     async with state.proxy() as data:
         if current_step + 1 != 5:
             if await tower_game_session(config):
@@ -105,17 +106,17 @@ async def tower_game(call: types.CallbackQuery, state: FSMContext, callback_data
                                                      current_step=current_step + 1))
             else:
                 await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=0,
-                                          session_maker=session_maker)
+                                          session_maker=session_maker, date=date)
                 await state.finish()
                 await call.message.delete()
                 await call.message.answer('Упс, вам не повезло ☹️', reply_markup=gold_menu_keyboard)
         else:
             win = await calculate_tower_win(int(data['current_bet']), current_step + 1)
             await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=win,
-                                      session_maker=session_maker)
+                                      session_maker=session_maker, date=date)
             await call.message.delete()
             await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
-            await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win)
+            await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win, date=date)
             await state.finish()
 
 
@@ -123,13 +124,14 @@ async def tower_game_end(call: types.CallbackQuery, state: FSMContext, callback_
     session_maker = call.bot['db']
     data = await state.get_data()
     win = int(callback_data.get('current_bet'))
+    date = datetime.datetime.now()
     await call.message.delete()
     await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                             currency_type='gold', value=win)
-    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=win)
+    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=win, date=date)
     await TowerGames.add_game(user_id=call.from_user.id, bet=int(data['current_bet']), win=win,
-                              session_maker=session_maker)
+                              session_maker=session_maker, date=date)
     await state.finish()
 
 
@@ -174,9 +176,10 @@ async def get_jackpot_bet(message: types.Message, state: FSMContext):
         if data['bet'] >= 10:
             if await User.is_enough(session_maker, message.from_user.id, 'gold', data['bet']):
                 room = await JackpotGame.check_available_room(session_maker=session_maker)
+                date = datetime.datetime.now()
                 if not room:
                     unix_time = int(datetime.datetime.now().timestamp()) + 600
-                    await JackpotGame.create_room(session_maker=session_maker, end_time=unix_time)
+                    await JackpotGame.create_room(session_maker=session_maker, end_time=unix_time, date=date)
                     room = await JackpotGame.check_available_room(session_maker=session_maker)
                     loop = asyncio.get_event_loop()
                     loop.create_task(jackpot_game(message.bot, session_maker, room))
@@ -200,6 +203,7 @@ async def jackpot_game(bot, session_maker, room_id):
     logging.info('Jackpot game started')
     await asyncio.sleep(600)
     logging.info('Jackpot game finishing')
+    date = datetime.datetime.now()
     users = await JackpotBets.get_users(room_id=room_id, session_maker=session_maker)
     if len(users) == 1:
         await JackpotGame.update_active_room(room_id, -1, session_maker)
@@ -217,7 +221,7 @@ async def jackpot_game(bot, session_maker, room_id):
         winner_winning = bank / 100 * 90
         bot_win = bank / 100 * 10
         await User.add_currency(session_maker, winner, 'gold', winner_winning)
-        await GoldHistory.add_gold_purchase(session_maker, winner, winner_winning)
+        await GoldHistory.add_gold_purchase(session_maker, winner, winner_winning, date=date)
         await JackpotGame.update_params_room(room_id, winner, int(winner_winning), bot_jackpot=bot_win,
                                              session_maker=session_maker)
 
@@ -255,6 +259,7 @@ async def lottery_ticket_buy(call: types.CallbackQuery, callback_data: dict):
     user_gold = await User.get_gold(session_maker=session_maker, telegram_id=call.from_user.id)
     price = int(callback_data.get('price'))
     ticket_id = int(callback_data.get('id'))
+    date = datetime.datetime.now()
 
     if int(user_gold) >= price:
         await User.take_currency(session_maker=session_maker, telegram_id=call.from_user.id,
@@ -270,12 +275,12 @@ async def lottery_ticket_buy(call: types.CallbackQuery, callback_data: dict):
             win = randint(0, price - 1)
 
         await TicketGames.add_game(user_id=call.from_user.id, ticket_id=ticket_id,
-                                   bet=price, win=win, session_maker=session_maker)
+                                   bet=price, win=win, session_maker=session_maker, date=date)
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                 currency_type='gold', value=win)
 
         await call.message.edit_text(f'Вы выиграли {win}G')
-        await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win)
+        await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win, date=date)
         logging.info(f'пользователь - {call.from_user.id} выиграл в лотерее {win}G')
     else:
         await call.message.edit_text('Недостаточно средств')

@@ -6,7 +6,6 @@ from aiogram.dispatcher import FSMContext
 from tg_bot.keyboards.inline import support
 from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.models.support import Tickets, SupportBan
-from tg_bot.models.users import User
 from tg_bot.models.workers import Support
 
 
@@ -75,7 +74,8 @@ async def answer_action(call: types.CallbackQuery, state: FSMContext, callback_d
 
 async def support_message(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
-    await Tickets.add_ticket(user_id=message.from_user.id, message=message.text, session_maker=session_maker)
+    date = datetime.datetime.now()
+    await Tickets.add_ticket(user_id=message.from_user.id, message=message.text, session_maker=session_maker, date=date)
     await message.answer('Ожидайте, вам ответят в ближайшее время', reply_markup=main_menu.keyboard)
     active_supports = [support[0] for support in await Support.get_active(session_maker=session_maker)]
     await state.finish()

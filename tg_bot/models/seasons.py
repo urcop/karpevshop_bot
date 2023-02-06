@@ -16,11 +16,13 @@ class Season(Base):
     end_season = Column(Integer, default=(datetime.datetime.now() + datetime.timedelta(90)).timestamp())
 
     @classmethod
-    async def create_new_season(cls, session_maker: sessionmaker):
+    async def create_new_season(cls, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
+            end_season = (date + datetime.timedelta(days=90)).timestamp()
             current_id = await cls.get_last_season(session_maker)
             try:
-                sql = insert(cls).values(id=int(current_id) + 1)
+                sql = insert(cls).values(id=int(current_id) + 1, start_season=unix_date, end_season=end_season)
             except:
                 sql = insert(cls).values(id=1)
             result = await db_session.execute(sql)

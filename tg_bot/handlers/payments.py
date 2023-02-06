@@ -99,7 +99,7 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
         await call.message.answer('Успешно оплачено', reply_markup=main_menu.keyboard)
         await BalanceHistory.add_balance_purchase(session_maker=session_maker,
                                                   telegram_id=call.from_user.id,
-                                                  money=payment.amount)
+                                                  money=payment.amount, date=date)
     await state.finish()
 
 

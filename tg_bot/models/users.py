@@ -17,7 +17,7 @@ class User(Base):
     balance = Column(Integer, default=0)
     gold = Column(Integer, default=0)
     role = Column(String(length=100), default='user')
-    reg_date = Column(String, default=datetime.now().strftime('%d.%m.%Y'))
+    reg_date = Column(String)
 
     @classmethod
     async def get_user(cls, session_maker: sessionmaker, telegram_id: int) -> 'User':
@@ -35,6 +35,26 @@ class User(Base):
             return request.all()
 
     @classmethod
+    async def add_user(cls,
+                       session_maker: sessionmaker,
+                       telegram_id: int,
+                       fullname: str,
+                       date: datetime,
+                       username: str = None,
+                       ) -> 'User':
+        async with session_maker() as db_session:
+            admin_date = date.strftime('%d.%m.%Y')
+            sql = insert(cls).values(
+                telegram_id=telegram_id,
+                fullname=fullname,
+                username=username,
+                reg_date=admin_date
+            ).returning('*')
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result.first()
+
+    @classmethod
     async def update_username_fullname(cls, telegram_id: int, session_maker: sessionmaker, username: str,
                                        fullname: str) -> 'User':
         async with session_maker() as db_session:
@@ -43,23 +63,6 @@ class User(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
-
-    @classmethod
-    async def add_user(cls,
-                       session_maker: sessionmaker,
-                       telegram_id: int,
-                       fullname: str,
-                       username: str = None,
-                       ) -> 'User':
-        async with session_maker() as db_session:
-            sql = insert(cls).values(
-                telegram_id=telegram_id,
-                fullname=fullname,
-                username=username
-            ).returning('*')
-            result = await db_session.execute(sql)
-            await db_session.commit()
-            return result.first()
 
     @classmethod
     async def get_balance(cls, session_maker: sessionmaker, telegram_id: int) -> int:

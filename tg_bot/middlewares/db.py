@@ -1,3 +1,5 @@
+import datetime
+
 from aiogram import types
 from aiogram.dispatcher.middlewares import LifetimeControllerMiddleware
 
@@ -11,6 +13,7 @@ class DbMiddleware(LifetimeControllerMiddleware):
     async def pre_process(self, obj, data, *args):
         session_maker = obj.bot.get('db')
         telegram_user: types.User = obj.from_user
+        date = datetime.datetime.now()
         user = await User.get_user(session_maker=session_maker, telegram_id=telegram_user.id)
         if not user:
             user = await User.add_user(
@@ -18,6 +21,7 @@ class DbMiddleware(LifetimeControllerMiddleware):
                 telegram_id=telegram_user.id,
                 fullname=telegram_user.full_name,
                 username=telegram_user.username,
+                date=date
             )
         await User.update_username_fullname(session_maker=session_maker, telegram_id=telegram_user.id,
                                             username=telegram_user.username, fullname=telegram_user.full_name)

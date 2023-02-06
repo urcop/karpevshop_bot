@@ -1,3 +1,4 @@
+import datetime
 import random
 
 from aiogram import types, Dispatcher
@@ -10,6 +11,7 @@ from tg_bot.models.users import User
 
 
 async def _give_free_case(session_maker, user_id):
+    date = datetime.datetime.now()
     await FreeCaseCooldown.add_cooldown(session_maker=session_maker, telegram_id=user_id)
     gold = random.randint(1, 3)
     await User.add_currency(
@@ -18,7 +20,7 @@ async def _give_free_case(session_maker, user_id):
         currency_type='gold',
         value=gold
     )
-    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold)
+    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold, date=date)
     return f'На ваш счет зачислено {gold}G'
 
 
@@ -37,6 +39,7 @@ async def case(call: types.CallbackQuery, callback_data: dict):
     id = callback_data.get('id')
     name = callback_data.get('name')
     price = callback_data.get('price')
+    date = datetime.datetime.now()
 
     if int(price) == 0:
         user_channel_status = await call.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
@@ -51,7 +54,7 @@ async def case(call: types.CallbackQuery, callback_data: dict):
                     await call.message.answer('Вы уже открыли бесплатный кейс.\n'
                                               f'Следующий кейс будет доступен через: {time}')
             else:
-                await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id)
+                await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id, date=date)
                 text = await _give_free_case(session_maker, user_id)
                 await call.message.answer(text)
         else:
@@ -78,6 +81,7 @@ async def case(call: types.CallbackQuery, callback_data: dict):
 async def case_action(call: types.CallbackQuery, callback_data: dict):
     action = callback_data.get('action')
     session_maker = call.bot['db']
+    date = datetime.datetime.now()
     if action == 'cancel':
         await call.message.edit_text(
             text='Выберите кейс из списка',
@@ -111,9 +115,9 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
                      f'На ваш счет зачислено {item_price} золота'
             )
             await CaseHistory.add_case_open(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            money_spent=price, gold_won=item_price)
+                                            money_spent=price, gold_won=item_price, date=date)
             await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                                gold=item_price)
+                                                gold=item_price, date=date)
         else:
             await call.message.edit_text('У вас недостаточно средств')
     elif action == 'subscribe':
@@ -130,7 +134,7 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
                     await call.message.edit_text('Вы уже открыли бесплатный кейс.\n'
                                                  f'Следующий кейс будет доступен через: {time}')
             else:
-                await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id)
+                await FreeCaseCooldown.add_user_cooldown(session_maker=session_maker, telegram_id=user_id, date=date)
                 text = await _give_free_case(session_maker, user_id)
                 await call.message.answer(text)
         else:

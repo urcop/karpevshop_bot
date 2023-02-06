@@ -93,13 +93,14 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         session_maker = call.bot['db']
         config = call.bot['config']
+        date = datetime.datetime.now()
         price = round(data['count_gold'] * config.misc.gold_rate)
         await User.take_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                  currency_type='balance', value=price)
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                 currency_type='gold', value=data['count_gold'])
         await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            gold=data['count_gold'])
+                                            gold=data['count_gold'], date=date)
         logging.info(f'Пользователь - {call.from_user.id} пополнил баланс на {data["count_gold"]}G')
 
         now = datetime.datetime.now().timestamp()
@@ -128,7 +129,7 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
                     reward = await prefixes(row)
 
                     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                                        gold=reward[0])
+                                                        gold=reward[0], date=date)
                     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                             currency_type='gold', value=reward[0])
         await call.message.delete()

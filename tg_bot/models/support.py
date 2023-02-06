@@ -13,14 +13,15 @@ class Tickets(Base):
     message = Column(String)
     support_id = Column(BigInteger, default=0)
     status = Column(Integer, default=0)
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    date = Column(String)
     date_done = Column(String, default=None)
 
     @classmethod
-    async def add_ticket(cls, user_id: int, message: str, session_maker: sessionmaker):
+    async def add_ticket(cls, user_id: int, message: str, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_ticket(session_maker) + 1
-            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, message=message)
+            sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, message=message, date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

@@ -15,15 +15,17 @@ class Product(Base):
     name = Column(String)
     description = Column(String)
     photo = Column(String, default=None)
-    time_created = Column(Integer, default=datetime.datetime.now().timestamp())
+    time_created = Column(Integer)
     price = Column(Integer)
 
     @classmethod
     async def add_product(cls, name: str, description: str,
-                          price: int, session_maker: sessionmaker):
+                          price: int, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
             id = await cls.get_last_product(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1, name=name, description=description, price=price)
+            sql = insert(cls).values(id=id + 1 if id else 1, name=name, description=description, price=price,
+                                     time_created=unix_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

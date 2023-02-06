@@ -66,12 +66,13 @@ class FreeCaseCooldown(Base):
     __tablename__ = 'free_case_cooldown'
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger)
-    cooldown_time = Column(BigInteger, default=int(datetime.datetime.now().timestamp()))
+    cooldown_time = Column(BigInteger)
 
     @classmethod
-    async def add_user_cooldown(cls, session_maker: sessionmaker, telegram_id: int) -> 'FreeCaseCooldown':
+    async def add_user_cooldown(cls, date: datetime, session_maker: sessionmaker, telegram_id: int) -> 'FreeCaseCooldown':
         async with session_maker() as db_session:
-            sql = insert(cls).values(telegram_id=telegram_id)
+            unix_date = int(date.timestamp())
+            sql = insert(cls).values(telegram_id=telegram_id, cooldown_time=unix_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

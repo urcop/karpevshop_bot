@@ -1,3 +1,5 @@
+import datetime
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
@@ -66,15 +68,17 @@ async def user_information(message: types.Message):
 
 async def generate_currency_text(type: str, notify_text: dict, session_maker: sessionmaker, count_currency: int,
                                  user_id: int):
+    date = datetime.datetime.now()
     text = 'золота' if type == 'gold' else 'рублей'
     if count_currency > 0:
         await User.add_currency(session_maker=session_maker, telegram_id=user_id, currency_type=type,
                                 value=count_currency)
         if type == 'gold':
-            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=count_currency)
+            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=count_currency,
+                                                date=date)
         else:
             await BalanceHistory.add_balance_purchase(session_maker=session_maker, telegram_id=user_id,
-                                                      money=count_currency)
+                                                      money=count_currency, date=date)
 
         notify_text['user_notify'] = f'На ваш счет зачислено {count_currency} {text}'
         notify_text['admin_confirm'] = f'На аккаунт пользователя {user_id} переведено {count_currency} {text}'
@@ -83,7 +87,7 @@ async def generate_currency_text(type: str, notify_text: dict, session_maker: se
         await User.take_currency(session_maker=session_maker, telegram_id=user_id, currency_type=type,
                                  value=count_currency)
         if type == 'balance':
-            await BalanceHistory.add_balance_purchase(session_maker, user_id, count_currency * -1)
+            await BalanceHistory.add_balance_purchase(session_maker, user_id, count_currency * -1, date=date)
 
         notify_text['user_notify'] = f'С вашего счета снято {count_currency} {text}'
         notify_text['admin_confirm'] = f'Счет пользователя {user_id} снято {count_currency} {text}'
@@ -263,6 +267,7 @@ async def finish(message: types.Message):
     session_maker = message.bot['db']
     admins = await User.get_admins(session_maker)
     taken_ticket = await OutputQueue.taken_ticket(worker_id=message.from_user.id, session_maker=session_maker)
+    date = datetime.datetime.now()
     if taken_ticket is None:
         await message.answer('У вас нет активных запросов')
         return
@@ -280,13 +285,14 @@ async def finish(message: types.Message):
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
     await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8,
-                                           session_maker=session_maker)
+                                           session_maker=session_maker, date=date)
     await message.bot.send_message(chat_id=user, text='🎉 Запрос на вывод золота, успешно завершён!')
     referrer = await Referral.get_referrer(telegram_id=user, session_maker=session_maker)
     if referrer:
+        date = datetime.datetime.now()
         await message.bot.send_message(chat_id=referrer, text='Вы получили 5G за реферала')
         await User.add_currency(telegram_id=referrer, currency_type='gold', value=5, session_maker=session_maker)
-        await GoldHistory.add_gold_purchase(telegram_id=referrer, gold=5, session_maker=session_maker)
+        await GoldHistory.add_gold_purchase(telegram_id=referrer, gold=5, session_maker=session_maker, date=date)
 
 
 async def returns_output(call: types.CallbackQuery, callback_data: dict):
@@ -514,9 +520,10 @@ async def add_product_price(message: types.Message, state: FSMContext):
 async def add_product_photo(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
     config = message.bot['config']
+    date = datetime.datetime.now()
     async with state.proxy() as data:
         await Product.add_product(data['name'], data['description'], price=int(data['price']),
-                                  session_maker=session_maker)
+                                  session_maker=session_maker, date=date)
         product_id = await Product.get_id(name=data['name'], session_maker=session_maker)
         photo_name = f'{product_id}.jpg'
         await message.photo[-1].download(

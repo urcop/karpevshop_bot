@@ -64,15 +64,19 @@ class TicketGames(Base):
 
     @classmethod
     async def add_game(cls, user_id: int, ticket_id: int,
-                       bet: int, win: int, session_maker: sessionmaker):
+                       bet: int, win: int, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
             id = await cls.get_last_ticket_game(session_maker)
+            unix_date = int(date.timestamp())
+            admin_date = date.strftime('%d.%m.%Y')
             sql = insert(cls).values(
                 id=id + 1 if id else 1,
                 user_id=user_id,
                 ticket_id=ticket_id,
                 bet=bet,
-                win=win
+                win=win,
+                unix_date=unix_date,
+                date=admin_date
             )
             result = await db_session.execute(sql)
             await db_session.commit()

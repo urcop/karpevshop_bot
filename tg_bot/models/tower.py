@@ -15,8 +15,8 @@ class TowerGames(Base):
     user_id = Column(BigInteger)
     bet = Column(Integer)
     win = Column(Integer)
-    unix_date = Column(Integer, default=datetime.datetime.now().timestamp())
-    date = Column(String, default=(datetime.datetime.now()).strftime('%d.%m.%Y'))
+    unix_date = Column(Integer)
+    date = Column(String)
 
     @classmethod
     async def get_last_tower_game(cls, session_maker: sessionmaker):
@@ -26,14 +26,18 @@ class TowerGames(Base):
             return result.scalar()
 
     @classmethod
-    async def add_game(cls, user_id: int, bet: int, win: int, session_maker: sessionmaker):
+    async def add_game(cls, user_id: int, bet: int, win: int, session_maker: sessionmaker, date: datetime):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_tower_game(session_maker)
             sql = insert(cls).values(
                 id=id + 1 if id else 1,
                 user_id=user_id,
                 bet=bet,
-                win=win
+                win=win,
+                unix_date=unix_date,
+                date=admin_date
             )
             result = await db_session.execute(sql)
             await db_session.commit()

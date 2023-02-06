@@ -59,6 +59,7 @@ async def promocode(call: types.CallbackQuery):
 
 async def promocode_code_name(message: types.Message, state: FSMContext):
     session_maker = message.bot['db']
+    date = datetime.datetime.now()
     async with state.proxy() as data:
         data['code_name'] = message.text
         promo_name = data['code_name']
@@ -77,12 +78,12 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
                         promo_type_text = 'рублей'
                         await BalanceHistory.add_balance_purchase(session_maker=session_maker,
                                                                   telegram_id=message.from_user.id,
-                                                                  money=promo_value)
+                                                                  money=promo_value, date=date)
                     elif promo_type == 'gold':
                         promo_type_text = 'золота'
                         await GoldHistory.add_gold_purchase(session_maker=session_maker,
                                                             telegram_id=message.from_user.id,
-                                                            gold=promo_value)
+                                                            gold=promo_value, date=date)
 
                     logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
                     await Promocode.decrement(promo_name, session_maker)

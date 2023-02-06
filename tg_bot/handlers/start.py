@@ -6,7 +6,11 @@ from tg_bot.keyboards.reply import main_menu
 from tg_bot.models.users import Referral
 
 
-async def start(message: types.Message):
+async def start(message: types.Message, state: FSMContext):
+    is_state = await state.get_state()
+    if is_state:
+        await state.finish()
+
     params = message.text.split(' ')
     text = [
         'Спасибо что выбрали нас!',
@@ -35,6 +39,6 @@ async def reset_state(message: types.Message, state: FSMContext):
 
 
 def register_start(dp: Dispatcher):
-    dp.register_message_handler(start, Command(['start']))
+    dp.register_message_handler(start, Command(['start']), state='*')
     dp.register_message_handler(back_main_menu, state="*", text='⬅️Назад')
     dp.register_message_handler(reset_state, Command(['reset_state']), state="*")

@@ -14,7 +14,7 @@ class JackpotGame(Base):
     time_end = Column(Integer)
     active = Column(Integer)
     bot_jackpot = Column(Integer)
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    date = Column(String)
 
     @classmethod
     async def get_last_jackpot(cls, session_maker: sessionmaker):
@@ -24,10 +24,11 @@ class JackpotGame(Base):
             return result.scalar()
 
     @classmethod
-    async def create_room(cls, end_time: int, session_maker: sessionmaker):
+    async def create_room(cls, end_time: int, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_jackpot(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1, active=1, time_end=end_time)
+            sql = insert(cls).values(id=id + 1 if id else 1, active=1, time_end=end_time, date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

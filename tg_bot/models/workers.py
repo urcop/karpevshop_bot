@@ -61,8 +61,8 @@ class WorkerHistory(Base):
     id = Column(Integer, primary_key=True)
     worker_id = Column(BigInteger)
     gold = Column(Float)
-    unix_date = Column(Integer, default=datetime.datetime.now().timestamp())
-    date = Column(String, default=datetime.datetime.now().strftime('%d.%m.%Y'))
+    unix_date = Column(Integer)
+    date = Column(String)
 
     @classmethod
     async def get_last_worker_history(cls, session_maker: sessionmaker):
@@ -72,10 +72,13 @@ class WorkerHistory(Base):
             return result.scalar()
 
     @classmethod
-    async def add_worker_history(cls, worker_id: int, gold: float, session_maker: sessionmaker):
+    async def add_worker_history(cls, worker_id: int, gold: float, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            unix_date = int(date.timestamp())
+            admin_date = date.strftime('%d.%m.%Y')
             id = await cls.get_last_worker_history(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1, worker_id=worker_id, gold=gold)
+            sql = insert(cls).values(id=id + 1 if id else 1, worker_id=worker_id, gold=gold, unix_date=unix_date,
+                                     date=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result

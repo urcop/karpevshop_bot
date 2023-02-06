@@ -67,7 +67,7 @@ class OutputQueue(Base):
     user_id = Column(BigInteger)
     item_id = Column(Integer)
     photo = Column(String)
-    create_time = Column(Integer, default=datetime.datetime.now().timestamp())
+    create_time = Column(Integer)
     user_nickname = Column(String)
     worker = Column(BigInteger, default=0)
     gold = Column(Float)
@@ -81,11 +81,12 @@ class OutputQueue(Base):
 
     @classmethod
     async def add_to_queue(cls, user_id: int, item_id: int, photo: str, user_nickname: str, gold: int,
-                           session_maker: sessionmaker):
+                           date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
+            admin_date = date.timestamp()
             id = await cls.get_last_queue(session_maker)
             sql = insert(cls).values(id=id + 1 if id else 1, user_id=user_id, item_id=item_id, photo=photo,
-                                     user_nickname=user_nickname, gold=gold)
+                                     user_nickname=user_nickname, gold=gold, create_time=admin_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -107,14 +108,14 @@ class OutputQueue(Base):
     @classmethod
     async def get_first_free_queue(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls).where(cls.worker == 0)
+            sql = select(cls).where(cls.worker == 0).order_by(cls.id.asc())
             result = await db_session.execute(sql)
             return result.first()
 
     @classmethod
     async def get_all_free_queue(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls).where(cls.worker == 0)
+            sql = select(cls).where(cls.worker == 0).order_by(cls.id.asc())
             result = await db_session.execute(sql)
             return result.all()
 
