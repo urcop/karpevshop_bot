@@ -17,7 +17,7 @@ from tg_bot.models.lottery import TicketGames
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.seasons import Season, Season2User
-from tg_bot.models.support import Tickets
+from tg_bot.models.support import Tickets, SupportBan
 from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User, Referral
 from tg_bot.models.workers import Worker, Support, WorkerHistory
@@ -51,7 +51,9 @@ async def user_information(message: types.Message):
     user = User(telegram_id=user_id)
     count_refs = await User.count_referrals(session_maker=session_maker, user=user)
     count_outputs = await OutputQueue.get_user_requests(user_id=user_id, session_maker=session_maker)
-    user_prefixes = [f'{season[0]}: {await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=user_id, season_id=int(season[0]))}'for season in seasons_id]
+    user_prefixes = [
+        f'{season[0]}: {await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=user_id, season_id=int(season[0]))}'
+        for season in seasons_id]
     user_prefixes_text = ' '.join(user_prefixes)
     text = [
         f'📂 Дата регистрации: {reg_date}',
@@ -151,10 +153,14 @@ async def stat(message: types.Message):
     date = message.text.split(' ')
     gold = await GoldHistory.get_stats_params(session_maker, date[1])
     money = await BalanceHistory.get_stats_params(session_maker, date[1])
+    reg_users = await User.get_users_by_reg_date(date[1], session_maker)
+    warns = await SupportBan.get_warns_by_date(date[1], session_maker)
     text = [
         f'Статистика за {"все время" if date[1] == "all" else date[1]}',
         f'Пополнено денег: {money}',
-        f'Продано золота: {gold}'
+        f'Продано золота: {gold}',
+        f'Зарегистрировано пользователей: {reg_users}',
+        f'Выдано предупреждений: {warns}'
     ]
     await message.answer('\n'.join(text))
 
