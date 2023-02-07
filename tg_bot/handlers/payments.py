@@ -39,6 +39,7 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
         if payment_system == 'QIWI':
             url = Payment(amount=payment_amount)
             url.create()
+            comment = url.get_id()
             await call.message.delete()
             await call.message.answer(
                 'Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты '
@@ -52,7 +53,7 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
             )
             await state.finish()
             await state.set_state('qiwi')
-            await state.update_data(payment=url)
+            await state.update_data({'comment': comment, 'amount': payment_amount})
 
         elif payment_system == 'another':
             text = [
@@ -73,10 +74,13 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
 
 async def payment_success(call: types.CallbackQuery, state: FSMContext):
     session_maker = call.bot.get('db')
+    config = call.bot['config']
     await call.answer(cache_time=5)
     data = await state.get_data()
-    payment: Payment = data.get('payment')
+    comment = data.get('comment')
+    amount = data.get('amount')
     date = datetime.datetime.now()
+    payment = Payment(amount, comment, config)
     try:
         payment.check_payment()
     except NoPaymentFound:

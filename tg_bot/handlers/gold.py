@@ -127,7 +127,7 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
             if prefix_type - current_prefix_reverse > 1:
                 for row in range(current_prefix_reverse, prefix_type):
                     reward = await prefixes(row)
-
+                    logging.info(f'Пользователь - {call.from_user.id} - получил дополнительно за префиксы {reward} G')
                     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
                                                         gold=reward[0], date=date)
                     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
@@ -154,6 +154,7 @@ async def count_gold_output(message: types.Message, state: FSMContext):
         user_gold = await User.get_gold(session_maker=session_maker, telegram_id=message.from_user.id)
         if user_gold >= data['count']:
             await message.answer('Выберите предмет для вывода:', reply_markup=types_keyboard)
+            logging.info(f'{message.from_user.id} - сделал вывод {data["count"]} G')
             await GoldOutput.next()
         else:
             await message.answer('У вас недостаточно средств')

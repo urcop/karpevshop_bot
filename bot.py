@@ -65,7 +65,11 @@ async def main():
     storage = RedisStorage2(host=config.redis.host,
                             password=config.redis.password,
                             port=config.redis.port) if config.bot.use_redis else MemoryStorage()
-    logger.info('storage creating')
+    if storage:
+        logger.info('storage creating')
+    else:
+        logger.error('storage not started')
+
     dp = Dispatcher(bot, storage=storage)
 
     bot['config'] = config

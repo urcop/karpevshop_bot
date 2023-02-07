@@ -23,6 +23,9 @@ class Payment:
     wallet = pyqiwi.Wallet(token=config.qiwi.token,
                            number=config.qiwi.qiwi_phone)
 
+    def get_id(self):
+        return self.id
+
     def create(self):
         self.id = str(uuid.uuid4())
 

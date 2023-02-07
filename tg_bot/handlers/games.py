@@ -154,9 +154,15 @@ async def jackpot(call: types.CallbackQuery, callback_data: dict, state: FSMCont
         await state.set_state('jackpot_bet')
     elif action == 'refresh':
         if room:
-            text = await generate_jackpot_text(room, session_maker)
-            await call.message.delete()
-            await call.message.answer('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+            end_time = await JackpotGame.get_end_time(room, session_maker)
+            if end_time > datetime.datetime.now().timestamp():
+                text = await generate_jackpot_text(room, session_maker)
+                await call.message.delete()
+                await call.message.answer('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+            else:
+                await call.message.delete()
+                loop = asyncio.get_event_loop()
+                loop.create_task(jackpot_game(call.bot, session_maker, room, sleep=1))
         else:
             await call.message.delete()
             await call.message.answer('Банк 0G\n'
@@ -182,9 +188,10 @@ async def get_jackpot_bet(message: types.Message, state: FSMContext):
                     await JackpotGame.create_room(session_maker=session_maker, end_time=unix_time, date=date)
                     room = await JackpotGame.check_available_room(session_maker=session_maker)
                     loop = asyncio.get_event_loop()
-                    loop.create_task(jackpot_game(message.bot, session_maker, room))
+                    loop.create_task(jackpot_game(message.bot, session_maker, room, 600))
                     await JackpotBets.add_bet(user_id=message.from_user.id, room_id=room, bet=data['bet'],
                                               session_maker=session_maker)
+
                 else:
                     await JackpotBets.add_bet(user_id=message.from_user.id, room_id=room, bet=data['bet'],
                                               session_maker=session_maker)
@@ -199,9 +206,9 @@ async def get_jackpot_bet(message: types.Message, state: FSMContext):
             return
 
 
-async def jackpot_game(bot, session_maker, room_id):
+async def jackpot_game(bot, session_maker, room_id, sleep):
     logging.info('Jackpot game started')
-    await asyncio.sleep(600)
+    await asyncio.sleep(sleep)
     logging.info('Jackpot game finishing')
     date = datetime.datetime.now()
     users = await JackpotBets.get_users(room_id=room_id, session_maker=session_maker)

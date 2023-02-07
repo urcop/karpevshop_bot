@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import types, Dispatcher
 from aiogram.types import InputFile
 
@@ -49,6 +51,7 @@ async def other_item_buy(call: types.CallbackQuery, callback_data: dict):
         admins = [admin[0] for admin in await User.get_admins(session_maker)]
         await User.take_currency(session_maker, call.from_user.id,
                                  currency_type='balance', value=price)
+        logging.info(f'Пользователь - {call.from_user.id} купил товар {name}')
         await Product.delete_product(name=name, session_maker=session_maker)
         await call.message.delete()
         await call.message.answer('Товар оплачен! Напишите @karpevg для его получения')

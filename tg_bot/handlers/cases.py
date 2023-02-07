@@ -50,7 +50,6 @@ async def case(call: types.CallbackQuery, callback_data: dict):
                     await call.message.answer(text)
                 else:
                     time = await FreeCaseCooldown.get_remaining_time(session_maker=session_maker, telegram_id=user_id)
-                    await call.message.delete()
                     await call.message.answer('Вы уже открыли бесплатный кейс.\n'
                                               f'Следующий кейс будет доступен через: {time}')
             else:
