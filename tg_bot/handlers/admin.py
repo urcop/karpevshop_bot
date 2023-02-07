@@ -154,13 +154,13 @@ async def stat(message: types.Message):
     gold = await GoldHistory.get_stats_params(session_maker, date[1])
     money = await BalanceHistory.get_stats_params(session_maker, date[1])
     reg_users = await User.get_users_by_reg_date(date[1], session_maker)
-    warns = await SupportBan.get_warns_by_date(date[1], session_maker)
+    warns = await Tickets.get_tickets_by_date(date[1], session_maker)
     text = [
         f'Статистика за {"все время" if date[1] == "all" else date[1]}',
         f'Пополнено денег: {money}',
         f'Продано золота: {gold}',
         f'Зарегистрировано пользователей: {reg_users}',
-        f'Выдано предупреждений: {warns}'
+        f'Обращений в поддержку: {warns}'
     ]
     await message.answer('\n'.join(text))
 

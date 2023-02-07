@@ -110,6 +110,16 @@ class Tickets(Base):
             result = await db_session.execute(sql)
             return result.scalar()
 
+    @classmethod
+    async def get_tickets_by_date(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.count(cls.id))
+            else:
+                sql = select(func.count(cls.id)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
     def __repr__(self):
         return f'{self.id}:{self.user_id}:{self.message}:{self.date}'
 
@@ -179,24 +189,5 @@ class SupportBan(Base):
     async def get_last_supportban(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
             sql = select(func.max(cls.id))
-            result = await db_session.execute(sql)
-            return result.scalar()
-
-    @classmethod
-    async def get_warns_by_date(cls, date: str, session_maker: sessionmaker):
-        async with session_maker() as db_session:
-            if date == 'all':
-                sql = select(func.count(cls.id))
-            else:
-                unix_date = datetime.datetime.strptime(date, '%d.%m.%Y')
-                days_30 = ((unix_date + datetime.timedelta(days=8)).timestamp(),
-                           (unix_date + datetime.timedelta(days=31)).timestamp())
-                days_7 = ((unix_date + datetime.timedelta(days=2)).timestamp(),
-                          (unix_date + datetime.timedelta(days=8)).timestamp())
-                days_1 = (unix_date.timestamp(),
-                          (unix_date + datetime.timedelta(days=2)).timestamp())
-                sql = select(func.count(cls.id)).where(or_(and_(cls.ban_time > days_1[0], cls.ban_time < days_1[1]),
-                                                           and_(cls.ban_time > days_7[0], cls.ban_time < days_7[1]),
-                                                           and_(cls.ban_time > days_30[0], cls.ban_time < days_30[1])))
             result = await db_session.execute(sql)
             return result.scalar()
