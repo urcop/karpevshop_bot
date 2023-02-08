@@ -41,7 +41,7 @@ answer_menu_keyboard = InlineKeyboardMarkup(
 
 
 async def take_ticket_keyboard(ticket_id, user_id):
-    keyboard = InlineKeyboardMarkup(
+    return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text='Начать диалог',
@@ -55,11 +55,10 @@ async def take_ticket_keyboard(ticket_id, user_id):
             ]
         ]
     )
-    return keyboard
 
 
 def report_ticket_confirm(ticket_id, user_id):
-    keyboard = InlineKeyboardMarkup(
+    return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text='Да', callback_data=report_ticket_callback.new('yes', user_id, ticket_id)),
@@ -67,4 +66,3 @@ def report_ticket_confirm(ticket_id, user_id):
             ]
         ]
     )
-    return keyboard

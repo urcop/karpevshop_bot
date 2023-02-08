@@ -12,19 +12,18 @@ class DbMiddleware(LifetimeControllerMiddleware):
 
     async def pre_process(self, obj, data, *args):
         session_maker = obj.bot.get('db')
-        telegram_user: types.User = obj.from_user
         date = datetime.datetime.now()
-        user = await User.get_user(session_maker=session_maker, telegram_id=telegram_user.id)
+        user = await User.get_user(session_maker=session_maker, telegram_id=obj.from_user.id)
         if not user:
             user = await User.add_user(
                 session_maker,
-                telegram_id=telegram_user.id,
-                fullname=telegram_user.full_name,
-                username=telegram_user.username,
+                telegram_id=obj.from_user.id,
+                fullname=obj.from_user.full_name,
+                username=obj.from_user.username,
                 date=date
             )
-        await User.update_username_fullname(session_maker=session_maker, telegram_id=telegram_user.id,
-                                            username=telegram_user.username, fullname=telegram_user.full_name)
+        await User.update_username_fullname(session_maker=session_maker, telegram_id=obj.from_user.id,
+                                            username=obj.from_user.username, fullname=obj.from_user.full_name)
         current_season_id = await Season.get_last_season(session_maker=session_maker)
         if not await Season2User.is_exists(session_maker=session_maker, telegram_id=obj.from_user.id,
                                            season_id=current_season_id):

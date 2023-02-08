@@ -94,7 +94,7 @@ class OutputQueue(Base):
     @classmethod
     async def get_user_requests(cls, user_id: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(func.count(cls.id)).where(and_(cls.user_id == user_id, cls.worker == 0))
+            sql = select(func.count(cls.id)).where(cls.user_id == user_id)
             result = await db_session.execute(sql)
             return result.scalar()
 

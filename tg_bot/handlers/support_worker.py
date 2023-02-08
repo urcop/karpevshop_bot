@@ -46,10 +46,11 @@ async def job(message: types.Message, state: FSMContext):
 async def take(message: types.Message):
     session_maker = message.bot['db']
     ticket = await Tickets.get_available_ticket(session_maker=session_maker)
+    in_dialog = await Tickets.support_in_dialog(support_id=message.from_user.id, session_maker=session_maker)
     if not ticket:
         await message.answer('Нет активных тикетов')
         return
-    if await Tickets.support_in_dialog(support_id=message.from_user.id, session_maker=session_maker):
+    if in_dialog:
         await message.answer('Завершите предыдущий тикет')
         return
     ticket_info = str(ticket[0]).split(':')

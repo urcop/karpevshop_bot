@@ -46,7 +46,7 @@ async def referral_system(call: types.CallbackQuery):
         f'🔥 Ваша ссылка: https://t.me/{config.misc.bot_link}?start={call.from_user.id}',
         f'👥 Количество приглашенных пользователей: {count_refs if count_refs else 0}'
     ]
-
+    await call.message.delete_reply_markup()
     await call.message.edit_text('\n'.join(text))
 
 
