@@ -16,7 +16,9 @@ async def other_items(message: types.Message):
     if len(products) > 0:
         i = 0
         while i < len(products):
-            name = str(products[i][0]).split(':')[0]
+            product = await Product.get_product_props(id=int(products[i][0]), session_maker=session_maker)
+            props = str(product[0]).split(':')
+            name = props[0]
             text.append(f'{i + 1}: {name}')
             i += 1
         await message.answer('\n'.join(text), reply_markup=await generate_other_items_keyboard(products))
