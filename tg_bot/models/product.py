@@ -38,10 +38,9 @@ class Product(Base):
             return result.scalar()
 
     @classmethod
-    async def delete_product(cls, name: str, session_maker: sessionmaker):
+    async def delete_product(cls, id: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            id = await cls.get_last_product(session_maker)
-            sql = delete(cls).where(cls.name == name)
+            sql = delete(cls).where(cls.id == id)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -64,9 +63,16 @@ class Product(Base):
     @classmethod
     async def get_all_products(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls)
+            sql = select(cls.id)
             result = await db_session.execute(sql)
             return result.all()
+
+    @classmethod
+    async def get_product_props(cls, id: int, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(cls).where(cls.id == id)
+            result = await db_session.execute(sql)
+            return result.first()
 
     def __repr__(self):
         return f'{self.name}:{self.description}:{self.price}:{self.photo}'
