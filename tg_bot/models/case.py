@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, String, Integer, Boolean, select, ForeignKey, BigInteger, insert, update, delete
+from sqlalchemy import Column, String, Integer, Boolean, select, ForeignKey, BigInteger, insert, update, delete, func
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.services.db_base import Base
@@ -16,7 +16,8 @@ class Case(Base):
     @classmethod
     async def add_case(cls, name: str, price: int, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(name=name, price=price)
+            id = await cls.get_last_id(session_maker=session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1,name=name, price=price)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -28,6 +29,13 @@ class Case(Base):
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_last_id(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     @classmethod
     async def get_case_id(cls, name: str, session_maker: sessionmaker):
@@ -69,7 +77,8 @@ class FreeCaseCooldown(Base):
     cooldown_time = Column(BigInteger)
 
     @classmethod
-    async def add_user_cooldown(cls, date: datetime, session_maker: sessionmaker, telegram_id: int) -> 'FreeCaseCooldown':
+    async def add_user_cooldown(cls, date: datetime, session_maker: sessionmaker,
+                                telegram_id: int) -> 'FreeCaseCooldown':
         async with session_maker() as db_session:
             unix_date = int(date.timestamp())
             sql = insert(cls).values(telegram_id=telegram_id, cooldown_time=unix_date)
@@ -130,10 +139,18 @@ class CaseItems(Base):
     async def add_case_item(cls, case_id: int, game_price: int, chance: int, item_name: str,
                             session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = insert(cls).values(case_id=case_id, game_price=game_price, chance=chance, name=item_name)
+            id = await cls.get_last_id(session_maker=session_maker)
+            sql = insert(cls).values(id=id + 1 if id else 1, case_id=case_id, game_price=game_price, chance=chance, name=item_name)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
+
+    @classmethod
+    async def get_last_id(cls, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            sql = select(func.max(cls.id))
+            result = await db_session.execute(sql)
+            return result.scalar()
 
     @classmethod
     async def delete_case_item(cls, item_name: str, session_maker: sessionmaker):
