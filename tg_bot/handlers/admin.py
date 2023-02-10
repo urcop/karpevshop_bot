@@ -521,8 +521,9 @@ async def add_item_name(message: types.Message, state: FSMContext):
 async def delete_product(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
-    id = params[1]
-    await Product.delete_product(id=id, session_maker=session_maker)
+    name = params[1]
+    id = await Product.get_id(name=name, session_maker=session_maker)
+    await Product.delete_product(id=int(id), session_maker=session_maker)
     await message.answer('Товар удален!')
 
 

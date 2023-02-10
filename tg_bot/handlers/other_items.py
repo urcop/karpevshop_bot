@@ -11,19 +11,29 @@ from tg_bot.models.product import Product
 from tg_bot.models.users import User
 
 
+async def _generate_other_items_text(products, session_maker):
+    text = ['Список доступных товаров:']
+    i = 0
+    while i < len(products):
+        product = await Product.get_product_props(id=int(products[i][0]), session_maker=session_maker)
+        props = str(product[0]).split(':')
+        name = props[0]
+        text.append(f'{i + 1}: {name}')
+        i += 1
+    return {
+        'text': '\n'.join(text),
+        'keyboard': await generate_other_items_keyboard(products)
+    }
+
+
 async def other_items(message: types.Message):
     session_maker = message.bot['db']
     products = await Product.get_all_products(session_maker)
-    text = ['Список доступных товаров:']
     if len(products) > 0:
-        i = 0
-        while i < len(products):
-            product = await Product.get_product_props(id=int(products[i][0]), session_maker=session_maker)
-            props = str(product[0]).split(':')
-            name = props[0]
-            text.append(f'{i + 1}: {name}')
-            i += 1
-        await message.answer('\n'.join(text), reply_markup=await generate_other_items_keyboard(products))
+        generated = await _generate_other_items_text(products, session_maker)
+        text = generated['text']
+        keyboard = generated['keyboard']
+        await message.answer(text, reply_markup=keyboard)
     else:
         await message.answer('На данный момент товары отсутствуют!')
 
@@ -89,15 +99,14 @@ async def other_item_buy(call: types.CallbackQuery, callback_data: dict):
 async def other_item_cancel(call: types.CallbackQuery):
     session_maker = call.bot['db']
     products = await Product.get_all_products(session_maker)
-    text = ['Список доступных товаров:']
     if len(products) > 0:
-        i = 0
-        while i < len(products):
-            name = str(products[i][0]).split(':')[0]
-            text.append(f'{i + 1}: {name}')
-            i += 1
+        generated = await _generate_other_items_text(products, session_maker)
+        text = generated['text']
+        keyboard = generated['keyboard']
         await call.message.delete()
-        await call.message.answer('\n'.join(text), reply_markup=await generate_other_items_keyboard(products))
+        await call.message.answer(text, reply_markup=keyboard)
+    else:
+        await call.message.answer('На данный момент товары отсутствуют!')
 
 
 def register_other_items(dp: Dispatcher):
