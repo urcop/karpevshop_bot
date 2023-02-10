@@ -16,6 +16,7 @@ from tg_bot.misc.place_in_queue import place_in_queue
 from tg_bot.misc.prefixes import get_prefix_type, prefixes, get_prefix_type_reverse
 from tg_bot.models.history import GoldHistory
 from tg_bot.models.items import Item, OutputQueue
+from tg_bot.models.logs import Logs
 from tg_bot.models.seasons import Season, Season2User
 from tg_bot.models.users import User
 from tg_bot.states.gold_output import GoldOutput
@@ -102,6 +103,11 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
         await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
                                             gold=data['count_gold'], date=date)
         logging.info(f'Пользователь - {call.from_user.id} пополнил баланс на {data["count_gold"]}G')
+        await Logs.add_log(telegram_id=call.from_user.id,
+                           message=f'Пополнил баланс на {data["count_gold"]}G',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
 
         now = datetime.datetime.now().timestamp()
         current_season_id = await Season.get_current_season(session_maker, now)
@@ -119,6 +125,11 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
                                             season_id=current_season_id, prefix=current_prefix[1])
             await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                     currency_type='gold', value=current_prefix[0])
+            await Logs.add_log(telegram_id=call.from_user.id,
+                               message=f'Получил {current_prefix[0]} G за новый префикс',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
             await call.message.answer(
                 f'🎉 Поздравляем, вы получили награду в виде {current_prefix[0]} золота за достижение нового префикса. '
                 f'Продолжайте открывать новые префиксы.')
@@ -128,6 +139,11 @@ async def access_buy(call: types.CallbackQuery, state: FSMContext):
                 for row in range(current_prefix_reverse, prefix_type):
                     reward = await prefixes(row)
                     logging.info(f'Пользователь - {call.from_user.id} - получил дополнительно за префиксы {reward} G')
+                    await Logs.add_log(telegram_id=call.from_user.id,
+                                       message=f'Получил дополнительно за префиксы {reward} G',
+                                       time=date.strftime('%H.%M'),
+                                       date=date.strftime('%d.%m.%Y'),
+                                       session_maker=session_maker)
                     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
                                                         gold=reward[0], date=date)
                     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
@@ -273,6 +289,11 @@ async def get_photo_output(message: types.Message, state: FSMContext):
             file_name = f'{message.from_user.id}_{randint(1000, 9999)}.jpg'
             await message.photo[-1].download(destination_file=config.misc.base_dir / 'uploads' / 'outputs' / file_name)
             user_nickname = message.from_user.username if message.from_user.username else message.from_user.full_name
+            await Logs.add_log(telegram_id=message.from_user.id,
+                               message=f'Поставил на вывод {data["count"]}',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
             await User.take_currency(session_maker=session_maker, telegram_id=message.from_user.id,
                                      currency_type='gold', value=data['count'])
             await OutputQueue.add_to_queue(user_id=message.from_user.id, item_id=item_id, photo=file_name,

@@ -18,6 +18,7 @@ from tg_bot.keyboards.reply.gold_menu import gold_menu_keyboard
 from tg_bot.misc.tower_game import tower_game_session, calculate_tower_win
 from tg_bot.models.history import GoldHistory
 from tg_bot.models.jackpot import JackpotGame, JackpotBets
+from tg_bot.models.logs import Logs
 from tg_bot.models.lottery import LotteryTickets, TicketGames
 from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User
@@ -127,6 +128,11 @@ async def tower_game_end(call: types.CallbackQuery, state: FSMContext, callback_
     date = datetime.datetime.now()
     await call.message.delete()
     await call.message.answer(f'Поздравляем, Вы выиграли {win} золота.', reply_markup=gold_menu_keyboard)
+    await Logs.add_log(telegram_id=call.from_user.id,
+                       message=f'Выиграл в tower {win} G',
+                       time=date.strftime('%H.%M'),
+                       date=date.strftime('%d.%m.%Y'),
+                       session_maker=session_maker)
     await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                             currency_type='gold', value=win)
     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id, gold=win, date=date)
@@ -227,6 +233,11 @@ async def jackpot_game(bot, session_maker, room_id, sleep):
         await JackpotGame.update_active_room(room_id, 0, session_maker)
         winner_winning = bank / 100 * 90
         bot_win = bank / 100 * 10
+        await Logs.add_log(telegram_id=winner,
+                           message=f'Выиграл в jackpot {winner_winning} G',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
         await User.add_currency(session_maker, winner, 'gold', winner_winning)
         await GoldHistory.add_gold_purchase(session_maker, winner, winner_winning, date=date)
         await JackpotGame.update_params_room(room_id, winner, int(winner_winning), bot_jackpot=bot_win,
@@ -289,6 +300,11 @@ async def lottery_ticket_buy(call: types.CallbackQuery, callback_data: dict):
         await call.message.edit_text(f'Вы выиграли {win}G')
         await GoldHistory.add_gold_purchase(session_maker, call.from_user.id, win, date=date)
         logging.info(f'пользователь - {call.from_user.id} выиграл в лотерее {win}G')
+        await Logs.add_log(telegram_id=call.from_user.id,
+                           message=f'Выиграл в лотерее {win}G',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
     else:
         await call.message.edit_text('Недостаточно средств')
 

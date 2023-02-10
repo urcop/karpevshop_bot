@@ -5,4 +5,5 @@ class AddProduct(StatesGroup):
     name = State()
     description = State()
     price = State()
+    count = State()
     photo = State()

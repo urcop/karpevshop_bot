@@ -17,15 +17,16 @@ class Product(Base):
     photo = Column(String, default=None)
     time_created = Column(Integer)
     price = Column(Integer)
+    count = Column(Integer)
 
     @classmethod
     async def add_product(cls, name: str, description: str,
-                          price: int, date: datetime, session_maker: sessionmaker):
+                          price: int, count: int, date: datetime, session_maker: sessionmaker):
         async with session_maker() as db_session:
             unix_date = int(date.timestamp())
             id = await cls.get_last_product(session_maker)
             sql = insert(cls).values(id=id + 1 if id else 1, name=name, description=description, price=price,
-                                     time_created=unix_date)
+                                     count=count, time_created=unix_date)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
@@ -75,7 +76,7 @@ class Product(Base):
             return result.first()
 
     def __repr__(self):
-        return f'{self.name}:{self.description}:{self.price}:{self.photo}'
+        return f'{self.name}:{self.description}:{self.price}:{self.photo}:{self.count}'
 
 
 if __name__ == '__main__':

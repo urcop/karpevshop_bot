@@ -13,11 +13,12 @@ from tg_bot.models.case import Case, CaseItems
 from tg_bot.models.history import GoldHistory, BalanceHistory, CaseHistory
 from tg_bot.models.items import OutputQueue, Item
 from tg_bot.models.jackpot import JackpotGame, JackpotBets
+from tg_bot.models.logs import Logs
 from tg_bot.models.lottery import TicketGames
 from tg_bot.models.product import Product
 from tg_bot.models.promocode import Promocode
 from tg_bot.models.seasons import Season, Season2User
-from tg_bot.models.support import Tickets, SupportBan
+from tg_bot.models.support import Tickets
 from tg_bot.models.tower import TowerGames
 from tg_bot.models.users import User, Referral
 from tg_bot.models.workers import Worker, Support, WorkerHistory
@@ -75,12 +76,23 @@ async def generate_currency_text(type: str, notify_text: dict, session_maker: se
     if count_currency > 0:
         await User.add_currency(session_maker=session_maker, telegram_id=user_id, currency_type=type,
                                 value=count_currency)
+
         if type == 'gold':
             await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=count_currency,
                                                 date=date)
+            await Logs.add_log(telegram_id=user_id,
+                               message=f'Пополнил золото на {count_currency}',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
         else:
             await BalanceHistory.add_balance_purchase(session_maker=session_maker, telegram_id=user_id,
                                                       money=count_currency, date=date)
+            await Logs.add_log(telegram_id=user_id,
+                               message=f'Пополнил баланс на {count_currency}',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
 
         notify_text['user_notify'] = f'На ваш счет зачислено {count_currency} {text}'
         notify_text['admin_confirm'] = f'На аккаунт пользователя {user_id} переведено {count_currency} {text}'
@@ -90,6 +102,11 @@ async def generate_currency_text(type: str, notify_text: dict, session_maker: se
                                  value=count_currency)
         if type == 'balance':
             await BalanceHistory.add_balance_purchase(session_maker, user_id, count_currency * -1, date=date)
+            await Logs.add_log(telegram_id=user_id,
+                               message=f'Забрали баланса {count_currency}р',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
 
         notify_text['user_notify'] = f'С вашего счета снято {count_currency} {text}'
         notify_text['admin_confirm'] = f'Счет пользователя {user_id} снято {count_currency} {text}'
@@ -290,6 +307,12 @@ async def finish(message: types.Message):
     await message.answer('Проверка закончена!\n'
                          f'Впереди еще {free_tickets}\n'
                          'Нажмите /output')
+
+    await Logs.add_log(telegram_id=user,
+                       message=f'Завершен вывод средств',
+                       time=date.strftime('%H.%M'),
+                       date=date.strftime('%d.%m.%Y'),
+                       session_maker=session_maker)
     await WorkerHistory.add_worker_history(worker_id=message.from_user.id, gold=int(gold) * 0.8,
                                            session_maker=session_maker, date=date)
     await message.bot.send_message(chat_id=user, text='🎉 Запрос на вывод золота, успешно завершён!')
@@ -305,6 +328,7 @@ async def returns_output(call: types.CallbackQuery, callback_data: dict):
     session_maker = call.bot['db']
     user = int(callback_data.get('user_id'))
     gold = int(callback_data.get('gold')) * 0.8
+    date = datetime.datetime.now()
     id = int(callback_data.get('ticket_id'))
     await OutputQueue.delete_from_queue(id=id, session_maker=session_maker)
     admins = await User.get_admins(session_maker)
@@ -314,6 +338,11 @@ async def returns_output(call: types.CallbackQuery, callback_data: dict):
     await call.message.delete()
     await User.add_currency(session_maker, user, currency_type='gold', value=gold)
     await call.message.answer('Средства возвращены на баланс пользователя')
+    await Logs.add_log(telegram_id=user,
+                       message=f'Совершен возврат средств',
+                       time=date.strftime('%H.%M'),
+                       date=date.strftime('%d.%m.%Y'),
+                       session_maker=session_maker)
     await call.bot.send_message(chat_id=user, text='Средства вернулись обратно на ваш баланс')
 
 
@@ -492,8 +521,8 @@ async def add_item_name(message: types.Message, state: FSMContext):
 async def delete_product(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
-    name = params[1]
-    await Product.delete_product(name=name, session_maker=session_maker)
+    id = params[1]
+    await Product.delete_product(id=id, session_maker=session_maker)
     await message.answer('Товар удален!')
 
 
@@ -519,6 +548,13 @@ async def add_product_description(message: types.Message, state: FSMContext):
 async def add_product_price(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['price'] = int(message.text)
+        await message.answer('Укажите количество товара либо -1 чтобы сделать его бесконечным')
+        await AddProduct.count.set()
+
+
+async def add_product_count(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['count'] = message.text
         await message.answer('Отправьте фото товара')
         await AddProduct.photo.set()
 
@@ -529,7 +565,7 @@ async def add_product_photo(message: types.Message, state: FSMContext):
     date = datetime.datetime.now()
     async with state.proxy() as data:
         await Product.add_product(data['name'], data['description'], price=int(data['price']),
-                                  session_maker=session_maker, date=date)
+                                  session_maker=session_maker, date=date, count=int(data['count']))
         product_id = await Product.get_id(name=data['name'], session_maker=session_maker)
         photo_name = f'{product_id}.jpg'
         await message.photo[-1].download(
@@ -588,6 +624,24 @@ async def jackpot_stats(message: types.Message):
     await message.answer('\n'.join(text))
 
 
+async def logs(message: types.Message):
+    session_maker = message.bot['db']
+    params = message.text.split(' ')
+    telegram_id = int(params[1])
+    date = params[2]
+    logs = await Logs.get_user_logs(telegram_id=telegram_id, date=date, session_maker=session_maker)
+    if len(logs) == 0:
+        await message.answer(f'У пользователя {telegram_id} за {date} нет логов')
+        return
+    text = [f'Логи {telegram_id} за {date}']
+    for log in logs:
+        log_time = log[0]
+        log_message = log[1]
+        text.append(f'{log_time} {log_message}')
+
+    await message.answer('\n'.join(text))
+
+
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(broadcaster, text_startswith='/ads', content_types=['text', 'photo'], is_admin=True)
     dp.register_message_handler(user_information, Command(['info']), is_admin=True)
@@ -618,6 +672,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(add_product_name, state=AddProduct.name, is_admin=True)
     dp.register_message_handler(add_product_description, state=AddProduct.description, is_admin=True)
     dp.register_message_handler(add_product_price, state=AddProduct.price, is_admin=True)
+    dp.register_message_handler(add_product_count, state=AddProduct.count, is_admin=True)
     dp.register_message_handler(add_product_photo, state=AddProduct.photo, content_types=['photo'], is_admin=True)
 
     dp.register_message_handler(admin_menu, Command(['admin']), is_admin=True)
@@ -628,3 +683,5 @@ def register_admin_handlers(dp: Dispatcher):
 
     dp.register_callback_query_handler(returns_output, returns_output_callback.filter(), state='admin_in_job',
                                        is_admin=True)
+
+    dp.register_message_handler(logs, Command(['logs']), is_admin=True)

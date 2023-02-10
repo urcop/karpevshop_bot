@@ -7,6 +7,7 @@ from tg_bot.keyboards.inline.cases import cases_keyboard, cases_callback, case_k
 from tg_bot.keyboards.inline.channel_sub import generate_channel_sub_keyboard
 from tg_bot.models.case import CaseItems, FreeCaseCooldown
 from tg_bot.models.history import GoldHistory, CaseHistory
+from tg_bot.models.logs import Logs
 from tg_bot.models.users import User
 
 
@@ -21,6 +22,11 @@ async def _give_free_case(session_maker, user_id):
         value=gold
     )
     await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=user_id, gold=gold, date=date)
+    await Logs.add_log(telegram_id=user_id,
+                       message=f'Открыл бесплатный кейс и получил {gold} G',
+                       time=date.strftime('%H.%M'),
+                       date=date.strftime('%d.%m.%Y'),
+                       session_maker=session_maker)
     return f'На ваш счет зачислено {gold}G'
 
 
@@ -108,6 +114,11 @@ async def case_action(call: types.CallbackQuery, callback_data: dict):
                                     telegram_id=call.from_user.id,
                                     currency_type='gold',
                                     value=item_price)
+            await Logs.add_log(telegram_id=call.from_user.id,
+                               message=f'Выбил с кейса {item_price} G',
+                               time=date.strftime('%H.%M'),
+                               date=date.strftime('%d.%m.%Y'),
+                               session_maker=session_maker)
             await call.message.edit_text(
                 text=f'Поздравляем, вам выпало <strong>{dropped_item}</strong> '
                      f'стоимостью <strong>{item_price}G</strong>.\n'

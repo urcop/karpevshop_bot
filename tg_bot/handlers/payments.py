@@ -7,6 +7,7 @@ from aiogram.dispatcher import FSMContext
 from tg_bot.keyboards.inline import payment
 from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.models.history import BalanceHistory
+from tg_bot.models.logs import Logs
 from tg_bot.models.users import User
 from tg_bot.services.payment import Payment, NoPaymentFound, NotEnoughMoney
 from tg_bot.states.payment_state import PaymentState
@@ -93,6 +94,11 @@ async def payment_success(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
                                 currency_type='balance', value=int(payment.amount))
+        await Logs.add_log(telegram_id=call.from_user.id,
+                           message=f'Пополнил баланс на {payment.amount}р',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
 
         text = [
             f'Пользователь: {call.from_user.id}',
@@ -124,8 +130,14 @@ async def payment_check(call: types.CallbackQuery, state: FSMContext):
 
 
 async def get_payment_check(message: types.Message, state: FSMContext):
+    date = datetime.datetime.now()
     if message.content_type in ['photo', 'document']:
         session_maker = message.bot.get('db')
+        await Logs.add_log(telegram_id=message.from_user.id,
+                           message=f'Отправил чек на проверку оплаты',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
         text = [
             'Получен чек об оплате',
             f'ID Пользователя: <code>{message.from_user.id}</code>'

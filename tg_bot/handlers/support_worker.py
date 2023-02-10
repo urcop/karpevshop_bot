@@ -1,14 +1,17 @@
+import datetime
+
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Command
 
-from tg_bot.handlers.admin import returns_output, output, finish, tell
+from tg_bot.handlers.admin import returns_output, output, finish, tell, logs
 from tg_bot.keyboards.inline.output_items import returns_output_callback
 from tg_bot.keyboards.inline.support import take_ticket_callback, report_ticket_callback, take_ticket_keyboard, \
     report_ticket_confirm
 from tg_bot.keyboards.reply import main_menu
 from tg_bot.keyboards.reply.support import support_keyboard, user_support_keyboard
 from tg_bot.keyboards.reply.worker import worker_keyboard
+from tg_bot.models.logs import Logs
 from tg_bot.models.support import SupportBan, Tickets
 from tg_bot.models.workers import Worker, Support
 
@@ -68,17 +71,28 @@ async def take_action(call: types.CallbackQuery, callback_data: dict, state: FSM
     action = callback_data.get('action')
     user_id = int(callback_data.get('user_id'))
     ticket_id = int(callback_data.get('ticket_id'))
+    date = datetime.datetime.now()
     if action == 'cancel_dialog':
         await call.message.delete()
         await call.message.answer('Тикет отклонен')
         await call.bot.send_message(chat_id=user_id, text='Ваш тикет отклонен!')
         await Tickets.update_status(ticket_id=ticket_id, status=-2, session_maker=session_maker)
+        await Logs.add_log(telegram_id=user_id,
+                           message=f'Тикет был отклонен',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
     if action == 'start_dialog':
         await call.message.delete_reply_markup()
         await call.message.answer('Вы начали диалог с пользователем')
         support_id = await Support.get_support_id(user_id=call.from_user.id, session_maker=session_maker)
         await call.bot.send_message(user_id, f'Агент тех поддержки №{support_id} начал диалог',
                                     reply_markup=user_support_keyboard)
+        await Logs.add_log(telegram_id=user_id,
+                           message=f'Начат диалог с тех. поддержкой',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
         await Tickets.update_status(ticket_id=ticket_id, status=1, session_maker=session_maker)
         await state.set_state('in_support')
         dp: Dispatcher = call.bot['dp']
@@ -96,11 +110,17 @@ async def report_ticket(call: types.CallbackQuery, callback_data: dict):
     action = callback_data.get('action')
     user_id = callback_data.get('user_id')
     ticket_id = callback_data.get('ticket_id')
+    date = datetime.datetime.now()
     if action == 'yes':
         await SupportBan.add_ban(user_id=int(user_id), session_maker=session_maker)
         await Tickets.update_status(ticket_id=int(ticket_id), status=-2, session_maker=session_maker)
         await call.message.edit_text('Жалоба отправлена, тикет отклонен')
         await call.bot.send_message(int(user_id), 'Сотрудник поддержки выдал вам предупреждение!')
+        await Logs.add_log(telegram_id=user_id,
+                           message=f'Выдана жалоба',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
     if action == 'no':
         await call.message.edit_text('Жалоба отклонена, напишите /take еще раз')
         await Tickets.update_support_id(ticket_id=int(ticket_id), support_id=0, session_maker=session_maker)
@@ -124,3 +144,4 @@ def register_support_worker_commands(dp: Dispatcher):
                                        is_support=True)
     dp.register_callback_query_handler(report_ticket, report_ticket_callback.filter(), state=['support_in_job', None],
                                        is_support=True)
+    dp.register_message_handler(logs, Command(['logs']), is_support=True)

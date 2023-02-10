@@ -10,6 +10,7 @@ from tg_bot.keyboards.reply import main_menu, back_to_main
 from tg_bot.misc.top_generators import generate_next_top_text, generate_text_top
 from tg_bot.models.history import BalanceHistory, GoldHistory
 from tg_bot.models.items import OutputQueue
+from tg_bot.models.logs import Logs
 from tg_bot.models.promocode import Promocode, User2Promo
 from tg_bot.models.users import User
 from tg_bot.states.promo_state import PromoState
@@ -79,13 +80,24 @@ async def promocode_code_name(message: types.Message, state: FSMContext):
                         await BalanceHistory.add_balance_purchase(session_maker=session_maker,
                                                                   telegram_id=message.from_user.id,
                                                                   money=promo_value, date=date)
+                        await Logs.add_log(telegram_id=message.from_user.id,
+                                           message=f'Применил промокод на {promo_value}р',
+                                           time=date.strftime('%H.%M'),
+                                           date=date.strftime('%d.%m.%Y'),
+                                           session_maker=session_maker)
                     elif promo_type == 'gold':
                         promo_type_text = 'золота'
                         await GoldHistory.add_gold_purchase(session_maker=session_maker,
                                                             telegram_id=message.from_user.id,
                                                             gold=promo_value, date=date)
+                        await Logs.add_log(telegram_id=message.from_user.id,
+                                           message=f'Применил промокод на {promo_value}G',
+                                           time=date.strftime('%H.%M'),
+                                           date=date.strftime('%d.%m.%Y'),
+                                           session_maker=session_maker)
 
                     logging.info(f'Промокод {promo_name} - применен {message.from_user.id}')
+
                     await Promocode.decrement(promo_name, session_maker)
                     await User2Promo.add_user_promo(user_id=message.from_user.id, promo_id=promo_id,
                                                     session_maker=session_maker)

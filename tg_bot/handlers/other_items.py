@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from aiogram import types, Dispatcher
@@ -5,6 +6,7 @@ from aiogram.types import InputFile
 
 from tg_bot.keyboards.inline.other_items import generate_other_items_keyboard, other_items_callback, \
     buy_other_item_keyboard, other_items_buy_callback, other_items_cancel_callback
+from tg_bot.models.logs import Logs
 from tg_bot.models.product import Product
 from tg_bot.models.users import User
 
@@ -53,17 +55,25 @@ async def other_item_buy(call: types.CallbackQuery, callback_data: dict):
     id = int(callback_data['id'])
     props = await Product.get_product_props(id=id, session_maker=session_maker)
     data = str(props[0]).split(':')
+    date = datetime.datetime.now()
     name = data[0]
     price = int(data[2])
+    count = int(data[4])
     if await User.is_enough(telegram_id=call.from_user.id, currency_type='balance',
                             count=price, session_maker=session_maker):
         admins = [admin[0] for admin in await User.get_admins(session_maker)]
         await User.take_currency(session_maker, call.from_user.id,
                                  currency_type='balance', value=price)
         logging.info(f'Пользователь - {call.from_user.id} купил товар {name}')
-        await Product.delete_product(id=id, session_maker=session_maker)
+        if count != -1:
+            await Product.delete_product(id=id, session_maker=session_maker)
         await call.message.delete()
         await call.message.answer('Товар оплачен! Напишите @karpevg для его получения')
+        await Logs.add_log(telegram_id=call.from_user.id,
+                           message=f'Купил товар {name} за {price}р',
+                           time=date.strftime('%H.%M'),
+                           date=date.strftime('%d.%m.%Y'),
+                           session_maker=session_maker)
         for admin in admins:
             await call.bot.send_message(chat_id=admin,
                                         text='Куплен товар:\n'
