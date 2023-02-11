@@ -27,7 +27,8 @@ class Logs(Base):
     @classmethod
     async def get_user_logs(cls, telegram_id: int, date: str, session_maker: sessionmaker):
         async with session_maker() as db_session:
-            sql = select(cls.time, cls.message).where(and_(cls.telegram_id == telegram_id, cls.date == date))
+            sql = select(cls.time, cls.message).where(and_(cls.telegram_id == telegram_id, cls.date == date)
+                                                      ).order_by(cls.id.asc())
             result = await db_session.execute(sql)
             return result.all()
 
@@ -38,5 +39,6 @@ if __name__ == '__main__':
         session = await create_db_session(config)
 
         print(await Logs.get_user_logs(123134234, '10.02.2023', session))
+
 
     asyncio.run(main())
