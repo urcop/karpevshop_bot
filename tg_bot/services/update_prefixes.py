@@ -24,7 +24,7 @@ async def main(season_id):
 
     fail = 0
     success = 0
-    for user in tqdm(users):
+    for user in tqdm(users[31955:]):
         user_id = user[0]
         prefix_in_db = await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=user_id,
                                                          season_id=season_id)

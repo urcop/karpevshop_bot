@@ -18,6 +18,8 @@ services:
       - cache
   db:
     image: postgres
+    logging:
+      driver: none
     environment:
       POSTGRES_DB: "${DATABASE_NAME}"
       POSTGRES_USER: "${DATABASE_USER}"
@@ -37,6 +39,8 @@ services:
     container_name: pgadmin4_container
     image: dpage/pgadmin4
     restart: always
+    logging:
+      driver: none
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${DATABASE_PASSWORD}
