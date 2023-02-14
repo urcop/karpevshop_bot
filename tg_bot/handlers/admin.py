@@ -168,16 +168,62 @@ async def tell(message: types.Message):
 async def stat(message: types.Message):
     session_maker = message.bot['db']
     date = message.text.split(' ')
-    gold = await GoldHistory.get_stats_params(session_maker, date[1])
-    money = await BalanceHistory.get_stats_params(session_maker, date[1])
-    reg_users = await User.get_users_by_reg_date(date[1], session_maker)
-    warns = await Tickets.get_tickets_by_date(date[1], session_maker)
+    try:
+        second_date = date[2]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        success_outputs = await WorkerHistory.get_stats_period(session_maker=session_maker, date=date[1])
+        gold = await GoldHistory.get_stats_params(session_maker, date[1])
+        money = await BalanceHistory.get_stats_params(session_maker, date[1])
+        reg_users = await User.get_users_by_reg_date(date[1], session_maker)
+        reg_users_id = await User.get_users_id_by_reg_date(date[1], session_maker)
+        reg_ref_users = [user[0] for user in reg_users_id if await Referral.get_user(session_maker, user[0])]
+        warns = await Tickets.get_tickets_by_date(date[1], session_maker)
+        text = [
+            f'Статистика за {"все время" if date[1] == "all" else date[1]}',
+            f'Пополнено денег: {money}',
+            f'Продано золота: {gold}',
+            f'Зарегистрировано пользователей: {reg_users}',
+            f'Зарегистрировано по реферальной ссылке: {len(reg_ref_users)}',
+            f'Сами нашли бота: {reg_users - len(reg_ref_users)}',
+            f'Обращений в поддержку: {warns}',
+            f'Успешных выводов золота: {success_outputs}'
+        ]
+        await message.answer('\n'.join(text))
+    else:
+        gold = 0
+        money = 0
+        reg_users = 0
+        warns = 0
+        success_outputs = 0
+        reg_users_id = []
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date[1], '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            reg_users_id.extend(await User.get_users_id_by_reg_date(day, session_maker))
+            gold_day = await GoldHistory.get_stats_params(session_maker, day)
+            gold += gold_day if gold_day else 0
+            money_day = await BalanceHistory.get_stats_params(session_maker, day)
+            money += money_day if money_day else 0
+            reg_users_day = await User.get_users_by_reg_date(day, session_maker)
+            reg_users += reg_users_day if reg_users_day else 0
+            warns_day = await Tickets.get_tickets_by_date(day, session_maker)
+            warns += warns_day if warns_day else 0
+            success_outputs_day = await WorkerHistory.get_stats_period(session_maker=session_maker, date=day)
+            success_outputs += success_outputs_day if success_outputs_day else 0
+
+    reg_ref_users = [user[0] for user in reg_users_id if await Referral.get_user(session_maker, user[0])]
     text = [
-        f'Статистика за {"все время" if date[1] == "all" else date[1]}',
+        f'Статистика с {date[1]} по {date[2]}',
         f'Пополнено денег: {money}',
         f'Продано золота: {gold}',
         f'Зарегистрировано пользователей: {reg_users}',
-        f'Обращений в поддержку: {warns}'
+        f'Зарегистрировано по реферальной ссылке: {len(reg_ref_users)}',
+        f'Сами нашли бота: {reg_users - len(reg_ref_users)}',
+        f'Обращений в поддержку: {warns}',
+        f'Успешных выводов золота: {success_outputs}'
     ]
     await message.answer('\n'.join(text))
 
@@ -185,16 +231,42 @@ async def stat(message: types.Message):
 async def cinfo(message: types.Message):
     session_maker = message.bot['db']
     date = message.text.split(' ')
-    money_spent = await CaseHistory.get_case_stats_money(session_maker=session_maker, date=date[1])
-    gold_won = await CaseHistory.get_case_stats_gold(session_maker=session_maker, date=date[1])
-    opened = await CaseHistory.get_case_stats_opened(session_maker=session_maker, date=date[1])
-    text = [
-        f'Статистика за {"все время" if date[1] == "all" else date[1]}',
-        f'Открыто кейсов: {opened}',
-        f'Потрачено денег: {money_spent}',
-        f'Выиграно золота: {gold_won}'
-    ]
-    await message.answer('\n'.join(text))
+    try:
+        second_date = date[2]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        money_spent = await CaseHistory.get_case_stats_money(session_maker=session_maker, date=date[1])
+        gold_won = await CaseHistory.get_case_stats_gold(session_maker=session_maker, date=date[1])
+        opened = await CaseHistory.get_case_stats_opened(session_maker=session_maker, date=date[1])
+        text = [
+            f'Статистика за {"все время" if date[1] == "all" else date[1]}',
+            f'Открыто кейсов: {opened}',
+            f'Потрачено денег: {money_spent}',
+            f'Выиграно золота: {gold_won}'
+        ]
+        await message.answer('\n'.join(text))
+    else:
+        money_spent = 0
+        gold_won = 0
+        opened = 0
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date[1], '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            money_spent_day = await CaseHistory.get_case_stats_money(session_maker=session_maker, date=day)
+            money_spent += money_spent_day if money_spent_day else 0
+            gold_won_day = await CaseHistory.get_case_stats_gold(session_maker=session_maker, date=day)
+            gold_won += gold_won_day if gold_won_day else 0
+            opened_day = await CaseHistory.get_case_stats_opened(session_maker=session_maker, date=day)
+            opened += opened_day if opened_day else 0
+        text = [
+            f'Статистика с {date[1]} по {date[2]}',
+            f'Открыто кейсов: {opened}',
+            f'Потрачено денег: {money_spent}',
+            f'Выиграно золота: {gold_won}'
+        ]
+        await message.answer('\n'.join(text))
 
 
 async def add_worker(message: types.Message):
@@ -351,48 +423,115 @@ async def worker_stats(message: types.Message):
     params = message.text.split(' ')
     worker_id = int(params[1])
     date = params[2]
-    gold_issued = await WorkerHistory.get_worker_stats(worker_id=worker_id, date=date, session_maker=session_maker)
-    text = [
-        f'Статистика работника за {"все время" if date == "all" else date}',
-        f'Выведено {gold_issued} золота'
-    ]
-    await message.answer('\n'.join(text))
+    try:
+        second_date = params[3]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        gold_issued = await WorkerHistory.get_worker_stats(worker_id=worker_id, date=date, session_maker=session_maker)
+        text = [
+            f'Статистика работника за {"все время" if date == "all" else date}',
+            f'Выведено {gold_issued} золота'
+        ]
+        await message.answer('\n'.join(text))
+    else:
+        gold_issued = 0
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date, '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            gold_issued_day = await WorkerHistory.get_worker_stats(worker_id=worker_id, date=day,
+                                                                   session_maker=session_maker)
+            gold_issued += gold_issued_day if gold_issued_day else 0
+        text = [
+            f'Статистика работника c {date} по {second_date}',
+            f'Выведено {gold_issued} золота'
+        ]
+        await message.answer('\n'.join(text))
 
 
 async def ticket_stats(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
     date = params[1]
-
-    games = await TicketGames.get_count_games_period(date=date, session_maker=session_maker)
-    sum_bets = await TicketGames.get_sum_bets_period(date=date, session_maker=session_maker)
-    win = await TicketGames.get_sum_win_period(date=date, session_maker=session_maker)
-
-    text = [
-        f'Статистика лотереи за {"все время" if date == "all" else date}',
-        f'Количество игр: {games}',
-        f'Сумма: {sum_bets}',
-        f'Выигрыш: {win}',
-    ]
-    await message.answer('\n'.join(text))
+    try:
+        second_date = params[2]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        games = await TicketGames.get_count_games_period(date=date, session_maker=session_maker)
+        sum_bets = await TicketGames.get_sum_bets_period(date=date, session_maker=session_maker)
+        win = await TicketGames.get_sum_win_period(date=date, session_maker=session_maker)
+        text = [
+            f'Статистика лотереи за {"все время" if date == "all" else date}',
+            f'Количество игр: {games}',
+            f'Сумма: {sum_bets}',
+            f'Выигрыш: {win}',
+        ]
+        await message.answer('\n'.join(text))
+    else:
+        games = 0
+        sum_bets = 0
+        win = 0
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date, '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            games_in_day = await TicketGames.get_count_games_period(date=day, session_maker=session_maker)
+            games += games_in_day if games_in_day else 0
+            sum_bets_day = await TicketGames.get_sum_bets_period(date=day, session_maker=session_maker)
+            sum_bets += sum_bets_day if sum_bets_day else 0
+            win_day = await TicketGames.get_sum_win_period(date=day, session_maker=session_maker)
+            win += win_day if win_day else 0
+        text = [
+            f'Статистика лотереи с {date} по {second_date}',
+            f'Количество игр: {games}',
+            f'Сумма: {sum_bets}',
+            f'Выигрыш: {win}',
+        ]
+        await message.answer('\n'.join(text))
 
 
 async def tower_stats(message: types.Message):
     session_maker = message.bot['db']
     params = message.text.split(' ')
     date = params[1]
-
-    games = await TowerGames.get_count_games_period(date=date, session_maker=session_maker)
-    sum_bets = await TowerGames.get_sum_bets_period(date=date, session_maker=session_maker)
-    win = await TowerGames.get_sum_win_period(date=date, session_maker=session_maker)
-
-    text = [
-        f'Статистика башни за {"все время" if date == "all" else date}',
-        f'Количество игр: {games}',
-        f'Сумма: {sum_bets}',
-        f'Выигрыш: {win}',
-    ]
-    await message.answer('\n'.join(text))
+    try:
+        second_date = params[2]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        games = await TowerGames.get_count_games_period(date=date, session_maker=session_maker)
+        sum_bets = await TowerGames.get_sum_bets_period(date=date, session_maker=session_maker)
+        win = await TowerGames.get_sum_win_period(date=date, session_maker=session_maker)
+        text = [
+            f'Статистика башни за {"все время" if date == "all" else date}',
+            f'Количество игр: {games}',
+            f'Сумма: {sum_bets}',
+            f'Выигрыш: {win}',
+        ]
+        await message.answer('\n'.join(text))
+    else:
+        games = 0
+        sum_bets = 0
+        win = 0
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date, '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            games_day = await TowerGames.get_count_games_period(date=day, session_maker=session_maker)
+            games += games_day if games_day else 0
+            sum_bets_day = await TowerGames.get_sum_bets_period(date=day, session_maker=session_maker)
+            sum_bets += sum_bets_day if sum_bets_day else 0
+            win_day = await TowerGames.get_sum_win_period(date=day, session_maker=session_maker)
+            win += win_day if win_day else 0
+        text = [
+            f'Статистика башни с {date} по {second_date}',
+            f'Количество игр: {games}',
+            f'Сумма: {sum_bets}',
+            f'Выигрыш: {win}',
+        ]
+        await message.answer('\n'.join(text))
 
 
 async def add_case(message: types.Message):

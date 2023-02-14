@@ -194,11 +194,9 @@ if __name__ == '__main__':
     async def main():
         config = load_config()
         session = await create_db_session(config)
-        top_user = await GoldHistory.get_history_period(session_maker=session,
-                                                        start_time=1675026000,
-                                                        end_time=1675717199)
+        summary_gold = [await GoldHistory.get_stats_params(session, date) for date in ['01.02.2023', '31.01.2023']]
 
-        print(top_user)
+        print(sum(summary_gold))
 
 
     asyncio.run(main())

@@ -102,6 +102,16 @@ class User(Base):
             return result.scalar()
 
     @classmethod
+    async def get_users_id_by_reg_date(cls, date: str, session_maker: sessionmaker):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(cls.telegram_id)
+            else:
+                sql = select(cls.telegram_id).where(cls.reg_date == date)
+            result = await db_session.execute(sql)
+            return result.all()
+
+    @classmethod
     async def take_currency(cls,
                             session_maker: sessionmaker,
                             telegram_id: int,
@@ -213,6 +223,13 @@ class Referral(Base):
             sql = select(cls.telegram_id).where(cls.referrer == user_id)
             result = await db_session.execute(sql)
             return result.all()
+
+    @classmethod
+    async def get_user(cls, session_maker: sessionmaker, user_id: int):
+        async with session_maker() as db_session:
+            sql = select(cls).where(cls.telegram_id == user_id)
+            result = await db_session.execute(sql)
+            return True if result.first() else False
 
 
 if __name__ == '__main__':

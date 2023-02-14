@@ -93,6 +93,16 @@ class WorkerHistory(Base):
             result = await db_session.execute(sql)
             return result.scalar()
 
+    @classmethod
+    async def get_stats_period(cls, session_maker: sessionmaker, date: str):
+        async with session_maker() as db_session:
+            if date == 'all':
+                sql = select(func.count(cls.gold))
+            else:
+                sql = select(func.count(cls.gold)).where(cls.date == date)
+            result = await db_session.execute(sql)
+            return result.scalar()
+
 
 class Support(Base):
     __tablename__ = 'support'
