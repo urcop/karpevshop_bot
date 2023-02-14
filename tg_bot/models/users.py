@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update
+from sqlalchemy import BigInteger, Column, String, Integer, select, insert, func, ForeignKey, update, delete
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -18,6 +18,14 @@ class User(Base):
     gold = Column(Integer, default=0)
     role = Column(String(length=100), default='user')
     reg_date = Column(String)
+
+    @classmethod
+    async def delete_user(cls, session_maker: sessionmaker, telegram_id: int):
+        async with session_maker() as db_session:
+            sql = delete(cls).where(cls.telegram_id == telegram_id)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
 
     @classmethod
     async def get_user(cls, session_maker: sessionmaker, telegram_id: int) -> 'User':

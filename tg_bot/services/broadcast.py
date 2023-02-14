@@ -4,16 +4,24 @@ import logging
 from aiogram import Bot
 from aiogram.utils import exceptions
 
+from tg_bot.models.seasons import Season2User
+from tg_bot.models.users import User
+
 
 async def send_message(bot: Bot, user_id, text: str, disable_notification: bool = False) -> bool:
+    session = bot['db']
     try:
         await bot.send_message(user_id, text, disable_notification=disable_notification)
     except exceptions.BotBlocked:
         logging.error(f'Target [ID:{user_id}]: Bot blocked by user')
     except exceptions.ChatNotFound:
         logging.exception(f'Target [ID:{user_id}]: ChatNotFound')
+    except exceptions.UserDeactivated:
+        logging.exception(f'Target [ID:{user_id}]: User Deactivated')
+        await User.delete_user(telegram_id=user_id, session_maker=session)
+        await Season2User.delete_user(user_id=user_id, session_maker=session)
     except exceptions.TelegramAPIError:
-        logging.exception(f'Target [ID:{user_id}]: failed')
+        logging.exception(f'Target [ID:{user_id}]: Failed')
     else:
         logging.info(f'Target [ID:{user_id}]: success')
         return True
@@ -21,12 +29,17 @@ async def send_message(bot: Bot, user_id, text: str, disable_notification: bool 
 
 
 async def send_photo(bot: Bot, user_id, text: str, photo_id: str, disable_notification: bool = False) -> bool:
+    session = bot['db']
     try:
         await bot.send_photo(user_id, photo_id, text, disable_notification=disable_notification)
     except exceptions.BotBlocked:
         logging.error(f'Target [ID:{user_id}]: Bot blocked by user')
     except exceptions.ChatNotFound:
         logging.exception(f'Target [ID:{user_id}]: ChatNotFound')
+    except exceptions.UserDeactivated:
+        logging.exception(f'Target [ID:{user_id}]: User Deactivated')
+        await User.delete_user(telegram_id=user_id, session_maker=session)
+        await Season2User.delete_user(user_id=user_id, session_maker=session)
     except exceptions.TelegramAPIError:
         logging.exception(f'Target [ID:{user_id}]: failed')
     else:

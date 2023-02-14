@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from sqlalchemy import Column, Integer, String, insert, select, func, BigInteger, and_, update
+from sqlalchemy import Column, Integer, String, insert, select, func, BigInteger, and_, update, delete
 from sqlalchemy.orm import sessionmaker
 
 from tg_bot.config import load_config
@@ -58,7 +58,6 @@ class Season(Base):
             result = await db_session.execute(sql)
             return result.first()
 
-
     @classmethod
     async def get_all_seasons(cls, session_maker: sessionmaker):
         async with session_maker() as db_session:
@@ -88,7 +87,15 @@ class Season2User(Base):
     async def add_user_to_season(cls, session_maker: sessionmaker, season_id: int, telegram_id: int):
         async with session_maker() as db_session:
             id = await cls.get_last_s2u(session_maker)
-            sql = insert(cls).values(id=id + 1 if id else 1,season_id=season_id, telegram_id=telegram_id)
+            sql = insert(cls).values(id=id + 1 if id else 1, season_id=season_id, telegram_id=telegram_id)
+            result = await db_session.execute(sql)
+            await db_session.commit()
+            return result
+
+    @classmethod
+    async def delete_user(cls, session_maker: sessionmaker, user_id: int):
+        async with session_maker() as db_session:
+            sql = delete(cls).where(cls.telegram_id == user_id)
             result = await db_session.execute(sql)
             await db_session.commit()
             return result
