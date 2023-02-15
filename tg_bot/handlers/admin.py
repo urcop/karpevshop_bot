@@ -721,13 +721,34 @@ async def support_stats(message: types.Message):
     params = message.text.split(' ')
     support_id = int(params[1])
     date = params[2]
+    try:
+        second_date = params[3]
+    except IndexError:
+        second_date = None
+    if not second_date:
+        done = await Tickets.get_done_support_tickets(support_id=support_id, date=date, session_maker=session_maker)
+        canceled = await Tickets.get_cancel_support_tickets(support_id=support_id, date=date,
+                                                            session_maker=session_maker)
 
-    done = await Tickets.get_done_support_tickets(support_id=support_id, date=date, session_maker=session_maker)
-    canceled = await Tickets.get_cancel_support_tickets(support_id=support_id, date=date, session_maker=session_maker)
-
-    await message.answer(f"За {date} работник {support_id}\n"
-                         f"Ответил на {done} тикетов\n"
-                         f"Отклонил {canceled} тикетов")
+        await message.answer(f"За {date} работник {support_id}\n"
+                             f"Ответил на {done} тикетов\n"
+                             f"Отклонил {canceled} тикетов")
+    else:
+        done = 0
+        canceled = 0
+        datetime_second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
+        period = datetime.datetime.strptime(second_date, '%d.%m.%Y') - datetime.datetime.strptime(date, '%d.%m.%Y')
+        for i in range(period.days):
+            day = (datetime_second_date - datetime.timedelta(days=i)).strftime('%d.%m.%Y')
+            done_day = await Tickets.get_done_support_tickets(support_id=support_id, date=day,
+                                                              session_maker=session_maker)
+            done += done_day if done_day else 0
+            canceled_day = await Tickets.get_cancel_support_tickets(support_id=support_id, date=day,
+                                                                    session_maker=session_maker)
+            canceled += canceled_day if canceled_day else 0
+        await message.answer(f"За период с {date} по {second_date} работник\n"
+                             f"Ответил на {done} тикетов\n"
+                             f"Отклонил {canceled} тикетов")
 
 
 async def ref_stats(message: types.Message):
