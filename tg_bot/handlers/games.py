@@ -142,38 +142,39 @@ async def tower_game_end(call: types.CallbackQuery, state: FSMContext, callback_
 
 
 async def jackpot(call: types.CallbackQuery, callback_data: dict, state: FSMContext):
-    session_maker = call.bot['db']
-    room = await JackpotGame.check_available_room(session_maker)
-    action = callback_data.get('action')
-    if not action:
-        if room:
-            text = await generate_jackpot_text(room, session_maker)
-            await call.message.edit_text('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
-        else:
-            await call.message.edit_text('Банк 0G\n'
-                                         'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
-            return
-
-    if action == 'bet':
-        await call.message.delete()
-        await call.message.answer('Введите сумму ставки', reply_markup=back_to_gold_keyboard)
-        await state.set_state('jackpot_bet')
-    elif action == 'refresh':
-        if room:
-            end_time = await JackpotGame.get_end_time(room, session_maker)
-            if end_time > datetime.datetime.now().timestamp():
-                text = await generate_jackpot_text(room, session_maker)
-                await call.message.delete()
-                await call.message.answer('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
-            else:
-                await call.message.delete()
-                loop = asyncio.get_event_loop()
-                loop.create_task(jackpot_game(call.bot, session_maker, room, sleep=1))
-        else:
-            await call.message.delete()
-            await call.message.answer('Банк 0G\n'
-                                      'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
-            return
+    await call.message.answer('Джекпот временно не доступен')
+    # session_maker = call.bot['db']
+    # room = await JackpotGame.check_available_room(session_maker)
+    # action = callback_data.get('action')
+    # if not action:
+    #     if room:
+    #         text = await generate_jackpot_text(room, session_maker)
+    #         await call.message.edit_text('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+    #     else:
+    #         await call.message.edit_text('Банк 0G\n'
+    #                                      'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
+    #         return
+    #
+    # if action == 'bet':
+    #     await call.message.delete()
+    #     await call.message.answer('Введите сумму ставки', reply_markup=back_to_gold_keyboard)
+    #     await state.set_state('jackpot_bet')
+    # elif action == 'refresh':
+    #     if room:
+    #         end_time = await JackpotGame.get_end_time(room, session_maker)
+    #         if end_time > datetime.datetime.now().timestamp():
+    #             text = await generate_jackpot_text(room, session_maker)
+    #             await call.message.delete()
+    #             await call.message.answer('\n'.join(text), reply_markup=await jackpot_keyboard(room_id=room))
+    #         else:
+    #             await call.message.delete()
+    #             loop = asyncio.get_event_loop()
+    #             loop.create_task(jackpot_game(call.bot, session_maker, room, sleep=1))
+    #     else:
+    #         await call.message.delete()
+    #         await call.message.answer('Банк 0G\n'
+    #                                   'Время: Ожидаем ставки', reply_markup=await jackpot_keyboard())
+    #         return
 
 
 async def get_jackpot_bet(message: types.Message, state: FSMContext):
