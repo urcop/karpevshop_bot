@@ -1,6 +1,7 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
+from aiogram.utils import exceptions
 
 from tg_bot.keyboards.reply import main_menu
 from tg_bot.models.support import Tickets
@@ -28,8 +29,11 @@ class SupportMiddleware(BaseMiddleware):
             if message.from_user.id == support_id:
                 await message.answer('Вы завершили диалог с пользователем')
                 await message.answer(f'В очереди еще {queue} тикетов')
-                await message.bot.send_message(second_id, 'Диалог с агентом поддержки завершен',
-                                               reply_markup=main_menu.keyboard)
+                try:
+                    await message.bot.send_message(second_id, 'Диалог с агентом поддержки завершен',
+                                                   reply_markup=main_menu.keyboard)
+                except exceptions.BotBlocked:
+                    return
             else:
                 await message.bot.send_message(second_id, 'Пользователь завершил диалог')
                 await message.bot.send_message(second_id, f'В очереди еще {queue} тикетов')
