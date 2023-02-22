@@ -144,4 +144,4 @@ def register_support_worker_commands(dp: Dispatcher):
                                        is_support=True)
     dp.register_callback_query_handler(report_ticket, report_ticket_callback.filter(), state=['support_in_job', None],
                                        is_support=True)
-    dp.register_message_handler(logs, Command(['logs']), is_support=True)
+    dp.register_message_handler(logs, Command(['logs']), is_support=True, state='*')
