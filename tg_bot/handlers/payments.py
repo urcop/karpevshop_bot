@@ -38,23 +38,26 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
         payment_amount = data['amount']
         payment_system = callback_data.get('choice')
         if payment_system == 'QIWI':
-            url = Payment(amount=payment_amount)
-            url.create()
-            comment = url.get_id()
-            await call.message.delete()
-            await call.message.answer(
-                'Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты '
-                'либо <b>Отмена для завершения операции</b>',
-                reply_markup=main_menu.keyboard)
-            await call.message.answer(
-                text=f'Вам нужно отправить  {payment_amount} руб на наш счет Qiwi\n'
-                     f'Ссылка: <a href="{url.invoice}">{url.invoice[:40]}...</a>\n'
-                     f'Указав комментарий: \n<code>{url.id}</code>',
-                reply_markup=payment.generate_qiwi_keyboard(url.invoice)
-            )
-            await state.finish()
-            await state.set_state('qiwi')
-            await state.update_data({'comment': comment, 'amount': payment_amount})
+            await call.answer()
+            await call.message.answer('По техническим причинам данный способ оплаты не работает...')
+            return
+            # url = Payment(amount=payment_amount)
+            # url.create()
+            # comment = url.get_id()
+            # await call.message.delete()
+            # await call.message.answer(
+            #     'Не забудьте нажать кнопку <b>Проверить оплату</b> для подтверждения оплаты '
+            #     'либо <b>Отмена для завершения операции</b>',
+            #     reply_markup=main_menu.keyboard)
+            # await call.message.answer(
+            #     text=f'Вам нужно отправить  {payment_amount} руб на наш счет Qiwi\n'
+            #          f'Ссылка: <a href="{url.invoice}">{url.invoice[:40]}...</a>\n'
+            #          f'Указав комментарий: \n<code>{url.id}</code>',
+            #     reply_markup=payment.generate_qiwi_keyboard(url.invoice)
+            # )
+            # await state.finish()
+            # await state.set_state('qiwi')
+            # await state.update_data({'comment': comment, 'amount': payment_amount})
 
         elif payment_system == 'another':
             text = [
