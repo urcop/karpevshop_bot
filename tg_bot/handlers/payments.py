@@ -39,7 +39,8 @@ async def get_payment_system(call: types.CallbackQuery, callback_data: dict, sta
         payment_system = callback_data.get('choice')
         if payment_system == 'QIWI':
             await call.answer()
-            await call.message.answer('По техническим причинам данный способ оплаты не работает...')
+            await call.message.answer(
+                'По техническим причинам данный способ оплаты не работает... Попробуйте оплатить другим способом')
             return
             # url = Payment(amount=payment_amount)
             # url.create()
