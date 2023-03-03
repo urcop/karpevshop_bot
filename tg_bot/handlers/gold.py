@@ -91,6 +91,7 @@ async def get_count_gold_exchange(message: types.Message, state: FSMContext):
 
 
 async def access_buy(call: types.CallbackQuery, state: FSMContext):
+    await call.answer(cache_time=5)
     async with state.proxy() as data:
         session_maker = call.bot['db']
         config = call.bot['config']
