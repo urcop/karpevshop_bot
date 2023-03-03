@@ -91,67 +91,70 @@ async def get_count_gold_exchange(message: types.Message, state: FSMContext):
 
 
 async def access_buy(call: types.CallbackQuery, state: FSMContext):
-    await call.answer(cache_time=5)
     async with state.proxy() as data:
         session_maker = call.bot['db']
         config = call.bot['config']
         date = datetime.datetime.now()
         price = round(data['count_gold'] * config.misc.gold_rate)
-        await User.take_currency(session_maker=session_maker, telegram_id=call.from_user.id,
-                                 currency_type='balance', value=price)
-        await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
-                                currency_type='gold', value=data['count_gold'])
-        await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            gold=data['count_gold'], date=date)
-        logging.info(f'Пользователь - {call.from_user.id} пополнил баланс на {data["count_gold"]}G')
-        await Logs.add_log(telegram_id=call.from_user.id,
-                           message=f'Пополнил баланс на {data["count_gold"]}G',
-                           time=date.strftime('%H.%M'),
-                           date=date.strftime('%d.%m.%Y'),
-                           session_maker=session_maker)
-
-        now = datetime.datetime.now().timestamp()
-        current_season_id = await Season.get_current_season(session_maker, now)
-        times = await Season.get_season_time(session_maker, current_season_id)
-
-        gold_in_season = await GoldHistory.get_gold_user_period(session_maker, start_time=int(times[0]),
-                                                                end_time=int(times[1]), user_id=call.from_user.id)
-        prefix_type = await get_prefix_type(gold_in_season)
-        current_prefix = await prefixes(prefix_type)
-        prefix_in_db = await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=call.from_user.id,
-                                                         season_id=current_season_id)
-
-        if current_prefix[1] != prefix_in_db:
-            await Season2User.update_prefix(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            season_id=current_season_id, prefix=current_prefix[1])
+        user_balance = await User.get_balance(telegram_id=call.from_user.id, session_maker=session_maker)
+        if price <= user_balance:
+            await User.take_currency(session_maker=session_maker, telegram_id=call.from_user.id,
+                                     currency_type='balance', value=price)
             await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
-                                    currency_type='gold', value=current_prefix[0])
+                                    currency_type='gold', value=data['count_gold'])
+            await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                gold=data['count_gold'], date=date)
+            logging.info(f'Пользователь - {call.from_user.id} пополнил баланс на {data["count_gold"]}G')
             await Logs.add_log(telegram_id=call.from_user.id,
-                               message=f'Получил {current_prefix[0]} G за новый префикс',
+                               message=f'Пополнил баланс на {data["count_gold"]}G',
                                time=date.strftime('%H.%M'),
                                date=date.strftime('%d.%m.%Y'),
                                session_maker=session_maker)
-            await call.message.answer(
-                f'🎉 Поздравляем, вы получили награду в виде {current_prefix[0]} золота за достижение нового префикса. '
-                f'Продолжайте открывать новые префиксы.')
 
-            current_prefix_reverse = await get_prefix_type_reverse(prefix_in_db)
-            if prefix_type - current_prefix_reverse > 1:
-                for row in range(current_prefix_reverse, prefix_type):
-                    reward = await prefixes(row)
-                    logging.info(f'Пользователь - {call.from_user.id} - получил дополнительно за префиксы {reward} G')
-                    await Logs.add_log(telegram_id=call.from_user.id,
-                                       message=f'Получил дополнительно за префиксы {reward} G',
-                                       time=date.strftime('%H.%M'),
-                                       date=date.strftime('%d.%m.%Y'),
-                                       session_maker=session_maker)
-                    await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
-                                                        gold=reward[0], date=date)
-                    await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
-                                            currency_type='gold', value=reward[0])
-        await call.message.delete()
-        await call.message.answer('Успешная покупка!', reply_markup=gold_menu_keyboard)
-        await state.finish()
+            now = datetime.datetime.now().timestamp()
+            current_season_id = await Season.get_current_season(session_maker, now)
+            times = await Season.get_season_time(session_maker, current_season_id)
+
+            gold_in_season = await GoldHistory.get_gold_user_period(session_maker, start_time=int(times[0]),
+                                                                    end_time=int(times[1]), user_id=call.from_user.id)
+            prefix_type = await get_prefix_type(gold_in_season)
+            current_prefix = await prefixes(prefix_type)
+            prefix_in_db = await Season2User.get_user_prefix(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                             season_id=current_season_id)
+
+            if current_prefix[1] != prefix_in_db:
+                await Season2User.update_prefix(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                season_id=current_season_id, prefix=current_prefix[1])
+                await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
+                                        currency_type='gold', value=current_prefix[0])
+                await Logs.add_log(telegram_id=call.from_user.id,
+                                   message=f'Получил {current_prefix[0]} G за новый префикс',
+                                   time=date.strftime('%H.%M'),
+                                   date=date.strftime('%d.%m.%Y'),
+                                   session_maker=session_maker)
+                await call.message.answer(
+                    f'🎉 Поздравляем, вы получили награду в виде {current_prefix[0]} золота за достижение нового префикса. '
+                    f'Продолжайте открывать новые префиксы.')
+
+                current_prefix_reverse = await get_prefix_type_reverse(prefix_in_db)
+                if prefix_type - current_prefix_reverse > 1:
+                    for row in range(current_prefix_reverse, prefix_type):
+                        reward = await prefixes(row)
+                        logging.info(f'Пользователь - {call.from_user.id} - получил дополнительно за префиксы {reward} G')
+                        await Logs.add_log(telegram_id=call.from_user.id,
+                                           message=f'Получил дополнительно за префиксы {reward} G',
+                                           time=date.strftime('%H.%M'),
+                                           date=date.strftime('%d.%m.%Y'),
+                                           session_maker=session_maker)
+                        await GoldHistory.add_gold_purchase(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                            gold=reward[0], date=date)
+                        await User.add_currency(session_maker=session_maker, telegram_id=call.from_user.id,
+                                                currency_type='gold', value=reward[0])
+            await call.message.delete()
+            await call.message.answer('Успешная покупка!', reply_markup=gold_menu_keyboard)
+            await state.finish()
+        else:
+            await call.message.answer('У вас недостаточно средств')
 
 
 async def output(message: types.Message):
